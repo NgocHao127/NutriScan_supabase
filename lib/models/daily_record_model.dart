@@ -1,0 +1,64 @@
+import 'meal_entry_model.dart';
+
+class DailyRecordModel {
+  final String userId;
+  final DateTime recordDate;
+  final double? caloriesGoal;
+  final double caloriesConsumed;
+  final double caloriesBurned;
+  final double protein;
+  final double carbs;
+  final double fat;
+  final List<MealEntryModel> meals;
+
+  DailyRecordModel({
+    required this.userId,
+    required this.recordDate,
+    this.caloriesGoal,
+    this.caloriesConsumed = 0,
+    this.caloriesBurned = 0,
+    this.protein = 0,
+    this.carbs = 0,
+    this.fat = 0,
+    this.meals = const [],
+  });
+
+  factory DailyRecordModel.fromJson(Map<String, dynamic> json) {
+    // Xử lý meals an toàn
+    List<MealEntryModel> meals = [];
+    final mealsData = json['meals'];
+    if (mealsData is List) {
+      meals = mealsData
+        .map((m) => MealEntryModel.fromJson(m as Map<String, dynamic>))
+        .toList();
+    }
+
+    return DailyRecordModel(
+      userId: json['user_id'] ?? '',
+      // Nếu không có record_date, dùng ngày hôm nay
+      recordDate: DateTime.parse(json['record_date']?.toString() ?? ''),
+      caloriesGoal: (json['daily_calories_goal'] ?? json['calories_goal'])
+          ?.toDouble(),
+      caloriesConsumed: (json['calories_consumed'] ?? 0).toDouble(),
+      caloriesBurned: (json['calories_burned'] ?? 0).toDouble(),
+      protein: (json['total_protein'] ?? 0).toDouble(),
+      carbs: (json['total_carbs'] ?? 0).toDouble(),
+      fat: (json['total_fat'] ?? 0).toDouble(),
+      meals: meals,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'user_id': userId,
+      'record_date': recordDate.toIso8601String().substring(0, 10),
+      if (caloriesGoal != null) 'daily_calories_goal': caloriesGoal,
+      'calories_consumed': caloriesConsumed,
+      'calories_burned': caloriesBurned,
+      'total_protein': protein,
+      'total_carbs': carbs,
+      'total_fat': fat,
+      'meals': meals.map((m) => m.toJson()).toList(),
+    };
+  }
+}
