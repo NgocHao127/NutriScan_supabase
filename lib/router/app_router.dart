@@ -63,8 +63,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ForgotPasswordScreen(),
       ),
 
-      G
-
       // Thêm ShellRoute bọc 4 màn hình có bottom nav
       ShellRoute(
         builder: (context, state, child) => MainShell(child: child),
