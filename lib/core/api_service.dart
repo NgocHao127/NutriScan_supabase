@@ -51,6 +51,7 @@ class ApiService {
     ErrorInterceptorHandler handler,
   ) async {
     final response = error.response;
+    print('=== API ERROR: ${response?.statusCode} ${response?.data} ===');
     if (response == null) {
       handler.next(error);
       return;

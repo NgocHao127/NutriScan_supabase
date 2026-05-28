@@ -70,6 +70,7 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
         List<int> cals = List.filled(7, 0);
         int totalWeeklyCals = 0;
         int activeDays = 0;
+        double totalWeeklyProtein = 0;
 
         if (snapshot.hasData) {
           final records = snapshot.data!;
@@ -88,6 +89,7 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
               if (consumed > 0) {
                 totalWeeklyCals += consumed;
                 activeDays++;
+                totalWeeklyProtein += record.protein;
               }
             }
           }
@@ -95,6 +97,8 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
 
         final avgCals =
             activeDays > 0 ? (totalWeeklyCals / activeDays).round() : 0;
+        final avgProtein =
+            activeDays > 0 ? (totalWeeklyProtein / activeDays).round() : 0;
         final daysOverGoal = cals.where((cal) => cal > goal).length;
 
         return SingleChildScrollView(
@@ -112,6 +116,7 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
                       chartH,
                       avgCals,
                       daysOverGoal,
+                      avgProtein,
                     )
                   : _buildMobileLayout(
                       context,
@@ -122,6 +127,7 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
                       chartH,
                       avgCals,
                       daysOverGoal,
+                      avgProtein,
                     ),
             ),
           ),
@@ -139,6 +145,7 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
     double chartH,
     int avgCals,
     int daysOverGoal,
+    int avgProtein,
   ) {
     final metricCols = context.isTablet ? 3 : 2;
 
@@ -156,7 +163,7 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
           crossAxisSpacing: 6,
           mainAxisSpacing: 6,
           childAspectRatio: context.isTablet ? 2.2 : 1.6,
-          children: _buildMetricCards(avgCals, daysOverGoal, goal),
+          children: _buildMetricCards(avgCals, daysOverGoal, goal, avgProtein),
         ),
         const SizedBox(height: 12),
         _buildAiComment(context),
@@ -174,6 +181,7 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
     double chartH,
     int avgCals,
     int daysOverGoal,
+    int avgProtein,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -183,7 +191,8 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
         _buildGoalLabel(context, goal),
         const SizedBox(height: 12),
         Row(
-          children: _buildMetricCards(avgCals, daysOverGoal, goal).map((card) {
+          children: _buildMetricCards(avgCals, daysOverGoal, goal, avgProtein)
+              .map((card) {
             return Expanded(
               child: Padding(
                 padding: const EdgeInsets.only(right: 8),
@@ -199,7 +208,8 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
     );
   }
 
-  List<Widget> _buildMetricCards(int avgCals, int daysOverGoal, int goal) {
+  List<Widget> _buildMetricCards(
+      int avgCals, int daysOverGoal, int goal, int avgProtein) {
     return [
       MetricCard(
         value: '$avgCals',
@@ -214,8 +224,8 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
         sub: 'Cố gắng giữ phong độ',
         subColor: daysOverGoal > 0 ? AppColors.danger : AppColors.textSecondary,
       ),
-      const MetricCard(
-        value: '0g',
+      MetricCard(
+        value: '${avgProtein}g',
         label: 'Protein TB',
         sub: 'mục tiêu 70g',
         subColor: AppColors.protein,

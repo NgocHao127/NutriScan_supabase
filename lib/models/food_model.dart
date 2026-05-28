@@ -1,4 +1,4 @@
-class FoodItem {
+class MealItemModel {
   final String name;
   final double calories;
   final double protein;
@@ -6,7 +6,7 @@ class FoodItem {
   final double fat;
   final String? portion;
 
-  FoodItem({
+  MealItemModel({
     this.name = '',
     this.calories = 0,
     this.protein = 0,
@@ -15,8 +15,8 @@ class FoodItem {
     this.portion,
   });
 
-  factory FoodItem.fromJson(Map<String, dynamic> json) {
-    return FoodItem(
+  factory MealItemModel.fromJson(Map<String, dynamic> json) {
+    return MealItemModel(
       name: json['name'] ?? '',
       calories: (json['calories'] ?? 0).toDouble(),
       protein: (json['protein'] ?? 0).toDouble(),

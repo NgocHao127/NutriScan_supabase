@@ -34,7 +34,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   String? _selectedGoal;
   String? _selectedActivity;
 
-  // Danh sách dữ liệu tĩnh phục vụ hiển thị Menu chọn
+  // Danh sách dữ liệu tĩnh
   final _genders = ['Nam', 'Nữ', 'Khác'];
   final _activities = [
     'Ít vận động (văn phòng)',
@@ -50,6 +50,39 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     ('Duy trì', Icons.balance_rounded, 'Cân bằng'),
     ('Sức khỏe', Icons.favorite_border_rounded, 'Tổng thể'),
   ];
+
+  // Tính TDEE theo công thức Mifflin-St Jeor
+  int _calculateTDEE() {
+    final weight = double.tryParse(_weightCtrl.text) ?? 0;
+    final height = double.tryParse(_heightCtrl.text) ?? 0;
+    final age = int.tryParse(_ageCtrl.text) ?? 0;
+    if (weight == 0 || height == 0 || age == 0) return 2000;
+
+    // BMR
+    double bmr;
+    if (_selectedGender == 'Nam') {
+      bmr = 10 * weight + 6.25 * height - 5 * age + 5;
+    } else {
+      bmr = 10 * weight + 6.25 * height - 5 * age - 161;
+    }
+
+    // Activity multiplier
+    final multipliers = {
+      'Ít vận động (văn phòng)': 1.2,
+      'Vận động nhẹ (1-3 ngày/tuần)': 1.375,
+      'Vận động trung bình (3-5 ngày/tuần)': 1.55,
+      'Vận động nhiều (6-7 ngày/tuần)': 1.725,
+      'Vận động rất nhiều (công việc nặng hoặc tập luyện 2 lần/ngày)': 1.9,
+    };
+    final multiplier = multipliers[_selectedActivity] ?? 1.2;
+    double tdee = bmr * multiplier;
+
+    // Điều chỉnh theo mục tiêu
+    if (_selectedGoal == 'Giảm cân') tdee -= 500;
+    if (_selectedGoal == 'Tăng cơ') tdee += 300;
+
+    return tdee.round();
+  }
 
   String? _nameError;
 
@@ -289,11 +322,49 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                                 setState(() => _selectedActivity = v),
                           ),
                           const SizedBox(height: 14),
-                          AuthInput(
-                            label: 'Mục tiêu calo mỗi ngày (kcal)',
-                            placeholder: '2000',
-                            controller: _calorieCtrl,
-                            keyboardType: TextInputType.number,
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Expanded(
+                                child: AuthInput(
+                                  label: 'Mục tiêu calo mỗi ngày (kcal)',
+                                  placeholder: '2000',
+                                  controller: _calorieCtrl,
+                                  keyboardType: TextInputType.number,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 2),
+                                child: TextButton(
+                                  onPressed: () {
+                                    final tdee = _calculateTDEE();
+                                    setState(() =>
+                                        _calorieCtrl.text = tdee.toString());
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Gợi ý: $tdee kcal/ngày'),
+                                        backgroundColor: AppColors.primaryMid,
+                                      ),
+                                    );
+                                  },
+                                  style: TextButton.styleFrom(
+                                    backgroundColor: AppColors.primaryLight,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 13),
+                                  ),
+                                  child: Text('Tính tự động',
+                                      style: TextStyle(
+                                        color: AppColors.primary,
+                                        fontSize: context.fs(11),
+                                        fontWeight: FontWeight.w500,
+                                      )),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 28),
                           AuthButton(

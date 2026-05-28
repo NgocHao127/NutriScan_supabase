@@ -41,7 +41,8 @@ class DailyRecordModel {
           DateTime.now().toIso8601String().substring(0, 10)),
       caloriesGoal:
           (json['daily_calories_goal'] ?? json['calories_goal'])?.toDouble(),
-      caloriesConsumed: (json['calories_consumed'] ?? 0).toDouble(),
+      caloriesConsumed:
+          (json['total_calories'] ?? json['calories_consumed'] ?? 0).toDouble(),
       caloriesBurned: (json['calories_burned'] ?? 0).toDouble(),
       protein: (json['total_protein'] ?? 0).toDouble(),
       carbs: (json['total_carbs'] ?? 0).toDouble(),

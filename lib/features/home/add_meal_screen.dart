@@ -5,7 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_responsive.dart';
 import '../../models/meal_entry_model.dart';
-import '../../models/food_model.dart';
+import '../../models/meal_item_model.dart';
 import '../../providers/api_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/today_record_provider.dart';
@@ -93,9 +93,11 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       final user = ref.read(authStateProvider).value;
       if (user == null) throw Exception('Chưa đăng nhập');
 
-      final foodItems = _foods
-          .map((f) => FoodItem(
-                name: f.name,
+      final mealItems = _foods
+          .map((f) => MealItemModel(
+                id: 0,
+                mealId: '',
+                foodName: f.name,
                 calories: f.calories,
                 protein: f.protein,
                 carbs: f.carbs,
@@ -113,7 +115,10 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
         mealType: _selectedMealType,
         mealTime: DateTime.now(),
         calories: _totalCalories,
-        items: foodItems,
+        protein: _totalProtein,
+        carbs: _totalCarbs,
+        fat: _totalFat,
+        items: mealItems,
       );
 
       await mealService.logMeal(meal.toJson());

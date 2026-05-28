@@ -33,19 +33,15 @@ class DailyTabView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSummaryCards(context),
-
         const SizedBox(height: 12),
         CalorieProgressBar(
           consumed: (record?.caloriesConsumed ?? 0.0).toInt(),
           goal: (record?.caloriesGoal ?? 2000.0).toInt(),
         ),
-
         const SizedBox(height: 8),
         _buildMacroRow(context),
-
         const SizedBox(height: 14),
         MealsGroups(meals),
-
         const SizedBox(height: 16),
       ],
     );
@@ -60,21 +56,17 @@ class DailyTabView extends StatelessWidget {
           child: Column(
             children: [
               _buildSummaryCards(context),
-
               const SizedBox(height: 14),
               CalorieProgressBar(
                 consumed: (record?.caloriesConsumed ?? 0.0).toInt(),
                 goal: (record?.caloriesGoal ?? 2000.0).toInt(),
               ),
-
               const SizedBox(height: 8),
               _buildMacroRow(context),
             ],
           ),
         ),
-
         const SizedBox(width: 32),
-
         Expanded(child: MealsGroups(meals, useGrid: true)),
       ],
     );
@@ -94,7 +86,6 @@ class DailyTabView extends StatelessWidget {
             sub: 'còn $remaining kcal',
           ),
         ),
-
         const SizedBox(width: 6),
         Expanded(
           child: MetricCard(
@@ -103,7 +94,6 @@ class DailyTabView extends StatelessWidget {
             sub: 'đi bộ 42 phút',
           ),
         ),
-
         const SizedBox(width: 6),
         Expanded(
           child: MetricCard(
@@ -133,14 +123,12 @@ class DailyTabView extends StatelessWidget {
           protein / proteinGoal.clamp(1.0, double.infinity),
           AppColors.protein,
         ),
-
         const SizedBox(width: 4),
         MacroMini(
           'C ${carbs.toInt()}g',
           carbs / carbsGoal.clamp(1.0, double.infinity),
           AppColors.carb,
         ),
-
         const SizedBox(width: 4),
         MacroMini(
           'F ${fat.toInt()}g',
@@ -173,7 +161,6 @@ class MacroMini extends StatelessWidget {
               fontWeight: FontWeight.w500,
             ),
           ),
-
           const SizedBox(height: 3),
           ClipRRect(
             borderRadius: BorderRadius.circular(2),
@@ -204,67 +191,95 @@ class MealsGroups extends StatelessWidget {
     }
 
     return Column(
-      children: ['Bữa sáng', 'Bữa trưa', 'Bữa tối', 'Ăn vặt'].map((type) {
-        final items = groupedMeals[type] ?? [];
-        final totalCal = items.fold(0.0, (s, m) => s + m.calories).toInt();
+      children: [
+        ...['Bữa sáng', 'Bữa trưa', 'Bữa tối', 'Ăn vặt'].map((type) {
+          final items = groupedMeals[type] ?? [];
+          if (items.isEmpty) return const SizedBox.shrink(); // ẩn nếu không có
+          final totalCal = items.fold(0.0, (s, m) => s + m.calories).toInt();
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  type,
-                  style: TextStyle(
-                    fontSize: context.fs(11),
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.primary,
-                  ),
-                ),
-
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Container(
-                    height: 0.5,
-                    color: AppColors.primary.withValues(alpha: 0.15),
-                  ),
-                ),
-
-                if (items.isNotEmpty) ...[
-                  const SizedBox(width: 8),
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
                   Text(
-                    '$totalCal kcal',
+                    type,
                     style: TextStyle(
                       fontSize: context.fs(11),
-                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.primary,
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Container(
+                      height: 0.5,
+                      color: AppColors.primary.withValues(alpha: 0.15),
+                    ),
+                  ),
+                  if (items.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    Text(
+                      '$totalCal kcal',
+                      style: TextStyle(
+                        fontSize: context.fs(11),
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ],
+              ),
+              const SizedBox(height: 6),
+              if (useGrid && items.length > 1)
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                    childAspectRatio: 4,
+                  ),
+                  itemCount: items.length,
+                  itemBuilder: (_, index) => MealRow(items[index]),
+                )
+              else
+                ...items.map((m) => MealRow(m)),
+              const SizedBox(height: 10),
+            ],
+          );
+        }),
+
+        // 1 nút thêm bữa ăn duy nhất
+        const SizedBox(height: 4),
+        GestureDetector(
+          onTap: () => context.push('/add-meal'),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(context.cardRadius),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.3),
+                width: 0.5,
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add, size: context.fs(13), color: AppColors.primary),
+                const SizedBox(width: 4),
+                Text('Thêm bữa ăn',
+                    style: TextStyle(
+                      fontSize: context.fs(12),
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w500,
+                    )),
               ],
             ),
-
-            const SizedBox(height: 6),
-            if (items.isEmpty)
-              AddBtn(type)
-            else if (useGrid && items.length > 1)
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                  childAspectRatio: 4,
-                ),
-                itemCount: items.length,
-                itemBuilder: (_, index) => MealRow(items[index]),
-              )
-            else
-              ...items.map((m) => MealRow(m)),
-            const SizedBox(height: 10),
-          ],
-        );
-      }).toList(),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -301,7 +316,6 @@ class MealRow extends StatelessWidget {
           width: 0.5,
         ),
       ),
-
       child: Row(
         children: [
           Container(
@@ -318,7 +332,6 @@ class MealRow extends StatelessWidget {
               ),
             ),
           ),
-
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -365,46 +378,6 @@ class MealRow extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class AddBtn extends StatelessWidget {
-  final String mealType;
-
-  const AddBtn(this.mealType, {super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => context.push('/add-meal', extra: mealType),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 9),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(context.cardRadius),
-          border: Border.all(
-            color: AppColors.primary.withValues(alpha: 0.3),
-            width: 0.5,
-          ),
-        ),
-
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.add, size: context.fs(13), color: AppColors.primary),
-
-            const SizedBox(width: 4),
-            Text(
-              'Thêm $mealType',
-              style: TextStyle(
-                fontSize: context.fs(11),
-                color: AppColors.primary,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

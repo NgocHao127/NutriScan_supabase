@@ -1,16 +1,19 @@
-import 'food_model.dart';
+import 'meal_item_model.dart';
 
 class MealEntryModel {
-  final String id; 
+  final String id;
   final String userId; // UUID từ Supabase, không phải Firebase UID nữa
   final String name;
   final String mealType;
   final DateTime mealTime;
   final double calories;
-  final List<FoodItem> items;
+  final double protein;
+  final double carbs;
+  final double fat;
+  final List<MealItemModel> items;
   final String? imageUrl;
   final String? note;
-  final DateTime? updatedAt; 
+  final DateTime? updatedAt;
 
   MealEntryModel({
     required this.id,
@@ -19,6 +22,9 @@ class MealEntryModel {
     this.mealType = 'Ăn vặt',
     required this.mealTime,
     this.calories = 0,
+    this.protein = 0,
+    this.carbs = 0,
+    this.fat = 0,
     this.items = const [],
     this.imageUrl,
     this.note,
@@ -26,11 +32,11 @@ class MealEntryModel {
   });
 
   factory MealEntryModel.fromJson(Map<String, dynamic> json) {
-    List<FoodItem> foodItems = [];
-    final itemsData = json['items'];
+    List<MealItemModel> mealItems = [];
+    final itemsData = json['meal_items'];
     if (itemsData is List) {
-      foodItems = itemsData
-          .map((i) => FoodItem.fromJson(i as Map<String, dynamic>))
+      mealItems = itemsData
+          .map((i) => MealItemModel.fromJson(i as Map<String, dynamic>))
           .toList();
     }
 
@@ -39,12 +45,20 @@ class MealEntryModel {
       userId: json['user_id'] ?? '',
       name: json['name'] ?? '',
       mealType: json['meal_type'] ?? 'Ăn vặt',
-      mealTime: DateTime.parse(json['recorded_at'] ?? DateTime.now().toUtc().toIso8601String()).toLocal(),
+      mealTime: DateTime.parse(json['meal_time']?.toString() ??
+              json['recorded_at']?.toString() ??
+              DateTime.now().toUtc().toIso8601String())
+          .toLocal(),
       calories: (json['calories'] ?? 0).toDouble(),
-      items: foodItems,
+      protein: (json['protein'] ?? 0).toDouble(), // thêm
+      carbs: (json['carbs'] ?? 0).toDouble(), // thêm
+      fat: (json['fat'] ?? 0).toDouble(),
+      items: mealItems,
       imageUrl: json['image_url'],
       note: json['note'],
-      updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']).toLocal() : null,
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at']).toLocal()
+          : null,
     );
   }
 
@@ -53,9 +67,14 @@ class MealEntryModel {
       'id': id,
       'name': name,
       'meal_type': mealType,
-      'recorded_at': mealTime.toUtc().toIso8601String(),
+      'meal_time': mealTime.toUtc().toIso8601String(),
       'calories': calories,
-      'items': items.map((e) => e.toJson()).toList(),
+      'protein': protein,
+      'carbs': carbs,
+      'fat': fat,
+      'items': items
+          .map((e) => e.toJson())
+          .toList(), // giữ để backend lưu meal_items
       if (imageUrl != null) 'image_url': imageUrl,
       if (note != null) 'note': note,
     };

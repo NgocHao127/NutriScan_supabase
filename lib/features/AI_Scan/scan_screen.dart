@@ -8,7 +8,7 @@ import 'widgets/loading_view.dart';
 import 'widgets/result_view.dart';
 
 import '../../providers/api_provider.dart';
-import '../../models/food_model.dart';
+import '../../models/meal_item_model.dart';
 
 enum ScanState { scanning, loading, result }
 
@@ -21,7 +21,7 @@ class ScanScreen extends ConsumerStatefulWidget {
 
 class _ScanScreenState extends ConsumerState<ScanScreen> {
   ScanState _state = ScanState.scanning;
-  List<FoodItem> _detectedFoods = [];
+  List<MealItemModel> _detectedFoods = [];
   XFile? _capturedImage;
   String? _errorMessage;
 
@@ -50,8 +50,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       final result = await foodService.analyzeFood(image.path);
       // result là List<dynamic> từ server, mỗi item có thể là Map chứa thông tin món ăn
       final foods = result.map((item) {
-        return FoodItem(
-          name: item['name'] ?? 'Món ăn',
+        return MealItemModel(
+          foodName: item['name'] ?? 'Món ăn',
           calories: (item['calories'] ?? 0).toDouble(),
           protein: (item['protein'] ?? 0).toDouble(),
           carbs: (item['carbs'] ?? 0).toDouble(),

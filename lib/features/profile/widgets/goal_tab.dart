@@ -263,7 +263,7 @@ class GoalGrid extends StatelessWidget {
         ? 1.0
         : context.isTablet
         ? 1.0
-        : 1.5;
+        : 1.3;
 
     return GridView.count(
       crossAxisCount: cols,

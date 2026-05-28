@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/app_responsive.dart';
 import '../../../models/meal_entry_model.dart';
+import '../../../models/meal_item_model.dart';
 
 class MealGroupList extends StatelessWidget {
   final List<MealEntryModel> meals;
@@ -28,12 +29,15 @@ class MealGroupList extends StatelessWidget {
     if (context.isTablet || context.isDesktop) {
       return Column(
         children: types.map((type) {
-          final items = grouped[type] ?? [];
-          final totalCal = items.fold(0.0, (s, m) => s + m.calories).toInt();
+          final entries = grouped[type] ?? [];
+          // Tổng calo của loại bữa này
+          final totalCal = entries.fold(0.0, (s, m) => s + m.calories).toInt();
+          // Gom tất cả meal_items của loại này
+          final mealItems = entries.expand((entry) => entry.items).toList();
 
           return MealGroup(
             type: type,
-            items: items,
+            mealItems: mealItems,
             totalCal: totalCal,
             useGrid: context.isDesktop,
           );
@@ -43,10 +47,13 @@ class MealGroupList extends StatelessWidget {
 
     return Column(
       children: types.map((type) {
-        final items = grouped[type] ?? [];
-        final totalCal = items.fold(0.0, (s, m) => s + m.calories).toInt();
+        final entries = grouped[type] ?? [];
+        // Tổng calo của loại bữa này
+        final totalCal = entries.fold(0.0, (s, m) => s + m.calories).toInt();
+        // Gom tất cả meal_items của loại này
+        final mealItems = entries.expand((entry) => entry.items).toList();
 
-        return MealGroup(type: type, items: items, totalCal: totalCal);
+        return MealGroup(type: type, mealItems: mealItems, totalCal: totalCal);
       }).toList(),
     );
   }
@@ -54,14 +61,14 @@ class MealGroupList extends StatelessWidget {
 
 class MealGroup extends StatelessWidget {
   final String type;
-  final List<MealEntryModel> items;
+  final List<MealItemModel> mealItems;
   final int totalCal;
   final bool useGrid;
 
   const MealGroup({
     super.key,
     required this.type,
-    required this.items,
+    required this.mealItems,
     required this.totalCal,
     this.useGrid = false,
   });
@@ -88,7 +95,7 @@ class MealGroup extends StatelessWidget {
                 color: AppColors.primary.withValues(alpha: 0.15),
               ),
             ),
-            if (items.isNotEmpty) ...[
+            if (mealItems.isNotEmpty) ...[
               const SizedBox(width: 8),
               Text(
                 '$totalCal kcal',
@@ -101,18 +108,19 @@ class MealGroup extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        if (items.isEmpty)
+        if (mealItems.isEmpty)
           AddMealButton(type: type)
         else if (useGrid)
-          _buildGrid(context, items)
+          _buildGrid(context)
         else
-          Column(children: items.map((m) => MealCard(meal: m)).toList()),
+          Column(
+              children: mealItems.map((item) => MealCard(item: item)).toList()),
         const SizedBox(height: 12),
       ],
     );
   }
 
-  Widget _buildGrid(BuildContext context, List<MealEntryModel> items) {
+  Widget _buildGrid(BuildContext context) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -122,32 +130,28 @@ class MealGroup extends StatelessWidget {
         mainAxisSpacing: 10,
         childAspectRatio: 3.2,
       ),
-      itemCount: items.length,
-      itemBuilder: (_, i) => MealCard(meal: items[i]),
+      itemCount: mealItems.length,
+      itemBuilder: (_, i) => MealCard(
+        item: mealItems[i],
+      ),
     );
   }
 }
 
 class MealCard extends StatelessWidget {
-  final MealEntryModel meal;
+  final MealItemModel item;
 
-  const MealCard({super.key, required this.meal});
+  const MealCard({
+    super.key,
+    required this.item,
+  });
 
   @override
   Widget build(BuildContext context) {
     final iconSize = context.iconSize(36, tablet: 40, desktop: 44);
-
-    // Format thời gian từ DateTime (VD: 14:30)
-    final timeStr =
-        "${meal.mealTime.hour.toString().padLeft(2, '0')}:${meal.mealTime.minute.toString().padLeft(2, '0')}";
-
-    // Tính toán macro thực tế từ danh sách món ăn
-    double totalProtein = 0, totalCarbs = 0, totalFat = 0;
-    for (final item in meal.items) {
-      totalProtein += item.protein;
-      totalCarbs += item.carbs;
-      totalFat += item.fat;
-    }
+    final timeStr = item.mealTime != null
+        ? "${item.mealTime!.hour.toString().padLeft(2, '0')}:${item.mealTime!.minute.toString().padLeft(2, '0')}"
+        : '';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
@@ -171,7 +175,7 @@ class MealCard extends StatelessWidget {
             ),
             child: Center(
               child: Text(
-                '🍲', // Tạm gắn emoji mặc định
+                '🍽️', // Tạm gắn emoji mặc định
                 style: TextStyle(fontSize: iconSize * 0.52),
               ),
             ),
@@ -183,7 +187,7 @@ class MealCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  meal.name,
+                  item.foodName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -192,12 +196,32 @@ class MealCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  timeStr,
-                  style: TextStyle(
-                    fontSize: context.fs(11),
-                    color: AppColors.textSecondary,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      timeStr.isNotEmpty ? timeStr : '',
+                      style: TextStyle(
+                        fontSize: context.fs(11),
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    if (timeStr.isNotEmpty && item.portion.isNotEmpty)
+                      Text(
+                        ' · ',
+                        style: TextStyle(
+                          fontSize: context.fs(11),
+                          color: AppColors.textHint,
+                        ),
+                      ),
+                    if (item.portion.isNotEmpty)
+                      Text(
+                        item.portion,
+                        style: TextStyle(
+                          fontSize: context.fs(11),
+                          color: AppColors.textHint,
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ),
@@ -207,7 +231,7 @@ class MealCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${meal.calories.toInt()} kcal',
+                '${item.calories.toInt()} kcal',
                 style: TextStyle(
                   fontSize: context.fs(12),
                   fontWeight: FontWeight.w500,
@@ -216,7 +240,7 @@ class MealCard extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                'P${totalProtein.toInt()} · C${totalCarbs.toInt()} · F${totalFat.toInt()}', // Giữ nguyên UI, sẽ map thực tế sau
+                'P${item.protein.toInt()} · C${item.carbs.toInt()} · F${item.fat.toInt()}', // Giữ nguyên UI, sẽ map thực tế sau
                 style: TextStyle(
                   fontSize: context.fs(10),
                   color: AppColors.textHint,

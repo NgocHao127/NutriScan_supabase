@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:io';
 
 final supabaseClientProvider = Provider<SupabaseClient>(
   (ref) => Supabase.instance.client,
@@ -52,7 +54,37 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
   Future<void> signInWithGoogle() async {
     state = const AsyncLoading();
     try {
-      await _supabase.auth.signInWithOAuth(OAuthProvider.google);
+      // Tạo local server lắng nghe callback
+      final server = await HttpServer.bind('localhost', 8888);
+
+      await _supabase.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: 'http://localhost:8888', // cho Windows desktop
+      );
+
+      // Đợi request từ browser
+      await for (final request in server) {
+        final uri = request.requestedUri;
+        print('=== CALLBACK: $uri ===');
+
+        // Trả về trang thành công cho browser
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.html
+          ..write(
+              '<html><body><h2>Đăng nhập thành công! Quay lại app.</h2></body></html>');
+        await request.response.close();
+
+        // Exchange code lấy session
+        if (uri.queryParameters.containsKey('code')) {
+          await _supabase.auth.exchangeCodeForSession(
+            uri.queryParameters['code']!,
+          );
+        }
+
+        await server.close();
+        break;
+      }
     } catch (e) {
       state = AsyncError(e, StackTrace.current);
     }

@@ -1,7 +1,7 @@
 class ScanHistoryModel {
   final String? id; // server ID (có thể null khi tạo mới)
   final String userId;
-  final String? foodId; // ID của FoodItem hoặc null
+  final String? foodId; // ID của MealItemModel hoặc null
   final double? confidence;
   final DateTime scannedAt;
   final String? imageUrl;

@@ -4,7 +4,7 @@ import '../../theme/app_responsive.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common_widgets.dart';
 
-import '../../../models/food_model.dart';
+import '../../../models/meal_item_model.dart';
 import '../../../models/meal_entry_model.dart';
 import '../../../providers/api_provider.dart';
 import '../../../providers/auth_provider.dart';
@@ -29,14 +29,14 @@ class FoodScanResult {
     required this.fat,
   });
 
-  // Factory để tạo từ FoodItem (kết quả AI trả về)
-  factory FoodScanResult.fromFoodItem(
-    FoodItem item, {
+  // Factory để tạo từ MealItemModel (kết quả AI trả về)
+  factory FoodScanResult.fromMealItemModel(
+    MealItemModel item, {
     double confidence = 0.9,
   }) {
     return FoodScanResult(
-      name: item.name,
-      emoji: _getEmojiForFood(item.name),
+      name: item.foodName,
+      emoji: _getEmojiForFood(item.foodName),
       confidence: confidence,
       calories: item.calories,
       protein: item.protein,
@@ -61,7 +61,7 @@ class FoodScanResult {
 }
 
 class ResultView extends ConsumerStatefulWidget {
-  final List<FoodItem> foods;
+  final List<MealItemModel> foods;
   final VoidCallback onRetry;
   final VoidCallback? onSave;
 
@@ -92,7 +92,7 @@ class _ResultViewState extends ConsumerState<ResultView> {
     }
     // Lấy món đầu tiên làm đại diện (có thể cải tiến sau)
     final first = widget.foods.first;
-    return FoodScanResult.fromFoodItem(first);
+    return FoodScanResult.fromMealItemModel(first);
   }
 
   @override
@@ -188,7 +188,7 @@ class _ResultViewState extends ConsumerState<ResultView> {
 class DesktopResultSheet extends StatelessWidget {
   final FoodScanResult food;
   final VoidCallback onRetry;
-  final List<FoodItem> foods;
+  final List<MealItemModel> foods;
 
   const DesktopResultSheet({
     super.key,
@@ -248,7 +248,7 @@ class DesktopResultSheet extends StatelessWidget {
 class ResultSheet extends ConsumerStatefulWidget {
   final FoodScanResult food;
   final VoidCallback onRetry;
-  final List<FoodItem> foods;
+  final List<MealItemModel> foods;
   final bool isDesktop;
 
   const ResultSheet({
@@ -275,8 +275,8 @@ class _ResultSheetState extends ConsumerState<ResultSheet> {
       if (user == null) throw Exception('Chưa đăng nhập');
 
       final multipliedFoods = widget.foods.map((f) {
-        return FoodItem(
-          name: f.name,
+        return MealItemModel(
+          foodName: f.foodName,
           calories: f.calories * portion,
           protein: f.protein * portion,
           carbs: f.carbs * portion,
@@ -304,6 +304,9 @@ class _ResultSheetState extends ConsumerState<ResultSheet> {
         mealType: mealType,
         mealTime: DateTime.now(),
         calories: totalCalories,
+        protein: multipliedFoods.fold(0.0, (s, f) => s + f.protein),
+        carbs: multipliedFoods.fold(0.0, (s, f) => s + f.carbs),
+        fat: multipliedFoods.fold(0.0, (s, f) => s + f.fat),
         items: multipliedFoods,
       );
 

@@ -9,31 +9,84 @@ settings = get_settings()
 supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
 async def save_meal(entry: dict, user_id: str, client_updated_at: str | None):
-    # Chỉ giữ các field có trong bảng
-    allowed_fields = {'id', 'user_id', 'name', 'meal_type', 'meal_time', 'calories', 'updated_at'}
-    entry = {k: v for k, v in entry.items() if k in allowed_fields}
+    items = entry.get("items", [])
+    
+    # Lấy ngày từ meal_time
+    meal_time = entry.get("meal_time", "")
+    date_str = meal_time[:10] if meal_time else datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    start_of_day = f"{date_str}T00:00:00+00:00"
+    end_of_day = f"{date_str}T23:59:59+00:00"
+    meal_type = entry.get("meal_type", "Ăn vặt")
 
-    if 'recorded_at' in entry:
-        entry['meal_time'] = entry.pop('recorded_at')
+    # Kiểm tra đã có meal_entry cùng ngày + cùng meal_type chưa
+    existing = supabase.table("meal_entries")\
+        .select("id, calories, protein, carbs, fat")\
+        .eq("user_id", user_id)\
+        .eq("meal_type", meal_type)\
+        .gte("meal_time", start_of_day)\
+        .lte("meal_time", end_of_day)\
+        .execute()
+    
+    meal_id = None # khai báo trước
 
-    entry["user_id"] = user_id
-    entry["updated_at"] = datetime.now(timezone.utc).isoformat()
+    if existing.data:
+        # Cập nhật tổng vào meal_entry cũ
+        meal_id = existing.data[0]["id"]
+        old = existing.data[0]
+        updated = {
+            "calories": old["calories"] + entry.get("calories", 0),
+            "protein": old["protein"] + entry.get("protein", 0),
+            "carbs": old["carbs"] + entry.get("carbs", 0),
+            "fat": old["fat"] + entry.get("fat", 0),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        supabase.table("meal_entries").update(updated).eq("id", meal_id).execute()
+        
+        # Fetch lại full record để có meal_time và các field khác
+        result_data = supabase.table("meal_entries")\
+            .select("*")\
+            .eq("id", meal_id)\
+            .single()\
+            .execute().data
+    else:  # ← bị thiếu else này
+        allowed_fields = {'id', 'user_id', 'name', 'meal_type', 'meal_time', 'calories', 'protein', 'carbs', 'fat', 'updated_at'}
+        new_entry = {k: v for k, v in entry.items() if k in allowed_fields}
+        new_entry["user_id"] = user_id
+        new_entry["updated_at"] = datetime.now(timezone.utc).isoformat()
+        result = supabase.table("meal_entries").insert(new_entry).execute()
+        meal_id = result.data[0]["id"]
+        result_data = result.data[0]
 
-    result = supabase.table("meal_entries").upsert(entry).execute()
-    return result.data[0]
+    print(f"=== meal_id before insert: {meal_id} ===")
+    print(f"=== existing.data: {existing.data} ===")
+    # Insert meal_items mới
+    if items:
+        meal_items = [
+            {
+                "meal_id": meal_id,
+                "food_name": item.get("name", ""),
+                "calories": item.get("calories", 0),
+                "protein": item.get("protein", 0),
+                "carbs": item.get("carbs", 0),
+                "fat": item.get("fat", 0),
+                "portion": item.get("portion", "1 phần"),
+                "meal_time": entry.get("meal_time"),
+            }
+            for item in items
+        ]
+        supabase.table("meal_items").insert(meal_items).execute()
+
+    return result_data
 
 async def get_daily_record(user_id: str, date_str: str = None):
-    """
-    Lấy tổng hợp dinh dưỡng trong ngày cho user.
-    """
     if not date_str:
         date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         
-    # Tạo khoảng thời gian trong ngày để query chính xác trên Supabase
     start_date = f"{date_str}T00:00:00+00:00"
     end_date = f"{date_str}T23:59:59+00:00"
     
-    response = supabase.table("meal_entries").select("*")\
+    # Join meal_items vào meal_entries
+    response = supabase.table("meal_entries").select("*, meal_items(*)")\
         .eq("user_id", user_id)\
         .gte("meal_time", start_date)\
         .lte("meal_time", end_date)\
@@ -41,13 +94,10 @@ async def get_daily_record(user_id: str, date_str: str = None):
         
     entries = response.data
     
-    # Tính tổng lượng calo trực tiếp từ entry
     total_calories = sum(entry.get("calories", 0.0) for entry in entries)
-    
-    # Tính macros bằng cách duyệt qua items bên trong mỗi entry
-    total_protein = sum(sum(item.get("protein", 0.0) for item in entry.get("items", [])) for entry in entries)
-    total_carbs = sum(sum(item.get("carbs", 0.0) for item in entry.get("items", [])) for entry in entries)
-    total_fat = sum(sum(item.get("fat", 0.0) for item in entry.get("items", [])) for entry in entries)
+    total_protein = sum(entry.get("protein", 0.0) for entry in entries)
+    total_carbs = sum(entry.get("carbs", 0.0) for entry in entries)
+    total_fat = sum(entry.get("fat", 0.0) for entry in entries)
     
     return {
         "date": date_str,
