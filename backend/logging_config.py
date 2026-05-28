@@ -1,6 +1,6 @@
 import structlog
 import logging
-from backend.config import get_settings
+from config import get_settings
 
 def setup_logging():
     settings = get_settings()

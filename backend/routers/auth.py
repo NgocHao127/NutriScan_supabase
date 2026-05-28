@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
-from backend.dependencies import get_current_user, CurrentUser
-from backend.services.user_service import get_or_create_user
+from dependencies import get_current_user, CurrentUser
+from services.user_service import get_or_create_user
 import structlog
 
 router = APIRouter()

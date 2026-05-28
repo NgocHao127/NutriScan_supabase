@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 
@@ -8,23 +8,27 @@ class FoodItem(BaseModel):
     protein: float
     carbs: float
     fat: float
-    portion: str = ""
+    portion: Optional[str] = ""
 
-class MealEntry(BaseModel):
-    id: str  # UUID client tạo
+class MealEntryCreate(BaseModel):
+    id: str
+    name: str
+    calories: float
     image_url: Optional[str] = None
     items: List[FoodItem] = []
-    meal_type: str = "snack"
+    meal_type: str = "Ăn vặt"
     note: Optional[str] = ""
     recorded_at: datetime
-    updated_at: Optional[str] = None  # phiên bản client biết
 
 class MealEntryResponse(BaseModel):
     id: str
     user_id: str
-    image_url: Optional[str]
-    items: List[FoodItem]
+    name: str
+    calories: float
     meal_type: str
-    note: Optional[str]
-    recorded_at: str
-    updated_at: str  # server timestamp
+    meal_time: datetime
+    updated_at: datetime
+    daily_record_id: Optional[int] = None
+
+    class Config:
+        from_attributes = True

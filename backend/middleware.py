@@ -1,6 +1,6 @@
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from backend.exceptions import AppException
+from exceptions import AppException
 import structlog
 
 logger = structlog.get_logger()
