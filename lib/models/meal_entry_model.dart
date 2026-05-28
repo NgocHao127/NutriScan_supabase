@@ -1,29 +1,19 @@
-import 'package:isar/isar.dart';
 import 'food_model.dart';
 
-part 'meal_entry_model.g.dart';
-
-@Collection()
 class MealEntryModel {
-  Id isarId = Isar.autoIncrement; // ID cục bộ của Isar
-  @Index(unique: true, replace: true)
-  late String serverId; // UID do client tạo hoặc server trả về
-  late String userId; // Firebase UID
-  late String name;
-  late String mealType;
-  late DateTime mealTime;
-  late double calories;
-
-  List<FoodItem> items = []; // danh sách món ăn (từ phân tích ảnh)
-  String? imageUrl;
-  String? note;
-  String? updatedAt; // timestamp server để giải quyết conflict
-
-  bool pendingSync = false; // true nếu chưa đồng bộ lên server
+  final String id; 
+  final String userId; // UUID từ Supabase, không phải Firebase UID nữa
+  final String name;
+  final String mealType;
+  final DateTime mealTime;
+  final double calories;
+  final List<FoodItem> items;
+  final String? imageUrl;
+  final String? note;
+  final DateTime? updatedAt; 
 
   MealEntryModel({
-    this.isarId = Isar.autoIncrement,
-    required this.serverId,
+    required this.id,
     required this.userId,
     this.name = '',
     this.mealType = 'Ăn vặt',
@@ -33,11 +23,9 @@ class MealEntryModel {
     this.imageUrl,
     this.note,
     this.updatedAt,
-    this.pendingSync = false,
   });
 
   factory MealEntryModel.fromJson(Map<String, dynamic> json) {
-    // Xử lý items an toàn
     List<FoodItem> foodItems = [];
     final itemsData = json['items'];
     if (itemsData is List) {
@@ -47,32 +35,29 @@ class MealEntryModel {
     }
 
     return MealEntryModel(
-      serverId: json['id'] ?? '',
+      id: json['id'] ?? '',
       userId: json['user_id'] ?? '',
       name: json['name'] ?? '',
       mealType: json['meal_type'] ?? 'Ăn vặt',
-      mealTime: DateTime.parse(json['recorded_at']
-        ?? DateTime.now().toUtc().toIso8601String()),
+      mealTime: DateTime.parse(json['recorded_at'] ?? DateTime.now().toUtc().toIso8601String()).toLocal(),
       calories: (json['calories'] ?? 0).toDouble(),
       items: foodItems,
       imageUrl: json['image_url'],
       note: json['note'],
-      updatedAt: json['updated_at'],
+      updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']).toLocal() : null,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'id': serverId,
-      'user_id': userId,
+      'id': id,
       'name': name,
       'meal_type': mealType,
       'recorded_at': mealTime.toUtc().toIso8601String(),
       'calories': calories,
       'items': items.map((e) => e.toJson()).toList(),
-      'image_url': imageUrl,
-      'note': note,
-      'updated_at': updatedAt,
+      if (imageUrl != null) 'image_url': imageUrl,
+      if (note != null) 'note': note,
     };
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/app_responsive.dart';
 import '../../../models/meal_entry_model.dart';
@@ -80,7 +81,6 @@ class MealGroup extends StatelessWidget {
                 color: AppColors.primary,
               ),
             ),
-
             const SizedBox(width: 8),
             Expanded(
               child: Container(
@@ -88,7 +88,6 @@ class MealGroup extends StatelessWidget {
                 color: AppColors.primary.withValues(alpha: 0.15),
               ),
             ),
-
             if (items.isNotEmpty) ...[
               const SizedBox(width: 8),
               Text(
@@ -101,7 +100,6 @@ class MealGroup extends StatelessWidget {
             ],
           ],
         ),
-
         const SizedBox(height: 8),
         if (items.isEmpty)
           AddMealButton(type: type)
@@ -109,7 +107,6 @@ class MealGroup extends StatelessWidget {
           _buildGrid(context, items)
         else
           Column(children: items.map((m) => MealCard(meal: m)).toList()),
-
         const SizedBox(height: 12),
       ],
     );
@@ -163,7 +160,6 @@ class MealCard extends StatelessWidget {
           width: 0.5,
         ),
       ),
-
       child: Row(
         children: [
           Container(
@@ -180,7 +176,6 @@ class MealCard extends StatelessWidget {
               ),
             ),
           ),
-
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -196,7 +191,6 @@ class MealCard extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-
                 const SizedBox(height: 2),
                 Text(
                   timeStr,
@@ -208,7 +202,6 @@ class MealCard extends StatelessWidget {
               ],
             ),
           ),
-
           const SizedBox(width: 8),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -221,7 +214,6 @@ class MealCard extends StatelessWidget {
                   color: AppColors.primary,
                 ),
               ),
-
               const SizedBox(height: 2),
               Text(
                 'P${totalProtein.toInt()} · C${totalCarbs.toInt()} · F${totalFat.toInt()}', // Giữ nguyên UI, sẽ map thực tế sau
@@ -246,7 +238,7 @@ class AddMealButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {},
+      onTap: () => context.push('/add-meal', extra: type),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 10),
@@ -257,12 +249,10 @@ class AddMealButton extends StatelessWidget {
             width: 0.5,
           ),
         ),
-
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.add, size: context.fs(14), color: AppColors.primary),
-
             const SizedBox(width: 4),
             Text(
               'Thêm $type',
@@ -279,7 +269,9 @@ class AddMealButton extends StatelessWidget {
 }
 
 class EmptyMealState extends StatelessWidget {
-  const EmptyMealState({super.key});
+  final String? mealType;
+
+  const EmptyMealState({super.key, this.mealType});
 
   @override
   Widget build(BuildContext context) {
@@ -336,7 +328,7 @@ class EmptyMealState extends StatelessWidget {
           const SizedBox(height: 24),
           // Nút CTA (Call-to-Action)
           ElevatedButton.icon(
-            onPressed: () {},
+            onPressed: () => context.push('/add-meal', extra: mealType),
             icon: const Icon(Icons.add_circle_outline, color: Colors.white),
             label: const Text(
               'Thêm bữa ăn ngay',

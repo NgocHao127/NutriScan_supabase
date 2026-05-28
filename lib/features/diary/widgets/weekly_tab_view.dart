@@ -5,7 +5,6 @@ import '../../theme/app_theme.dart';
 import '../../widgets/common_widgets.dart';
 
 import '../../../providers/api_provider.dart';
-import '../../../providers/isar_provider.dart';
 
 import '../../../models/daily_record_model.dart';
 
@@ -28,73 +27,21 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
   }
 
   Future<List<DailyRecordModel?>> _fetchWeeklyData() async {
-    final apiService = ref.read(apiServiceProvider);
-    final isar = ref.read(isarProvider);
+    final mealService = ref.read(mealServiceProvider);
     final List<DailyRecordModel?> records = [];
 
     for (final date in widget.weekDates) {
       try {
-        // Thử lấy từ cache Isar trước
-        final cachedMeals = await isar.getMealsByDate(date);
-        if (cachedMeals.isNotEmpty) {
-          double calories = 0, protein = 0, carbs = 0, fat = 0;
-          for (final m in cachedMeals) {
-            calories += m.calories;
-            for (final item in m.items) {
-              protein += item.protein;
-              carbs += item.carbs;
-              fat += item.fat;
-            }
-          }
-          records.add(
-            DailyRecordModel(
-              userId: cachedMeals.first.userId,
-              recordDate: date,
-              caloriesConsumed: calories,
-              protein: protein,
-              carbs: carbs,
-              fat: fat,
-              meals: cachedMeals,
-            ),
-          );
-        }
-
-        // Gọi API để lấy dữ liệu mới nhất
-        final data = await apiService.getDailyRecord(
+        final data = await mealService.getDailyRecord(
           date: date.toIso8601String().substring(0, 10),
         );
-        final serverRecord = DailyRecordModel.fromJson(data);
-        // Cập nhật cache nếu có meals mới
-        if (serverRecord.meals.isNotEmpty) {
-          await isar.deleteMealsByDate(date);
-          for (var meal in serverRecord.meals) {
-            meal.pendingSync = false;
-            meal.updatedAt = data['updated_at']?.toString();
-            await isar.saveMeal(meal);
-          }
-        }
-        // Ghi đè record bằng server data
-        final index = records.indexWhere(
-          (r) =>
-              r != null &&
-              r.recordDate.year == date.year &&
-              r.recordDate.month == date.month &&
-              r.recordDate.day == date.day,
-        );
-        if (index != -1) {
-          records[index] = serverRecord;
-        }
-      } catch (_) {
-        // Offline hoặc lỗi: giữ cache (đã thêm ở trên) hoặc null
-        if (!records.any(
-          (r) =>
-              r != null &&
-              r.recordDate.year == date.year &&
-              r.recordDate.month == date.month &&
-              r.recordDate.day == date.day,
-        )) {
+        if (data.isNotEmpty) {
+          records.add(DailyRecordModel.fromJson(data));
+        } else {
           records.add(null);
         }
+      } catch (_) {
+        records.add(null);
       }
     }
     return records;
@@ -109,8 +56,8 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
     final chartH = context.isDesktop
         ? 180.0
         : context.isTablet
-        ? 160.0
-        : 130.0;
+            ? 160.0
+            : 130.0;
 
     return FutureBuilder<List<DailyRecordModel?>>(
       future: _weeklyDataFuture,
@@ -146,9 +93,8 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
           }
         }
 
-        final avgCals = activeDays > 0
-            ? (totalWeeklyCals / activeDays).round()
-            : 0;
+        final avgCals =
+            activeDays > 0 ? (totalWeeklyCals / activeDays).round() : 0;
         final daysOverGoal = cals.where((cal) => cal > goal).length;
 
         return SingleChildScrollView(
@@ -200,10 +146,8 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildChart(context, cals, days, goal, maxVal, chartH),
-
         const SizedBox(height: 4),
         _buildGoalLabel(context, goal),
-
         const SizedBox(height: 12),
         GridView.count(
           crossAxisCount: metricCols,
@@ -214,10 +158,8 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
           childAspectRatio: context.isTablet ? 2.2 : 1.6,
           children: _buildMetricCards(avgCals, daysOverGoal, goal),
         ),
-
         const SizedBox(height: 12),
         _buildAiComment(context),
-
         const SizedBox(height: 16),
       ],
     );
@@ -237,10 +179,8 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildChart(context, cals, days, goal, maxVal, chartH),
-
         const SizedBox(height: 4),
         _buildGoalLabel(context, goal),
-
         const SizedBox(height: 12),
         Row(
           children: _buildMetricCards(avgCals, daysOverGoal, goal).map((card) {
@@ -252,10 +192,8 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
             );
           }).toList(),
         ),
-
         const SizedBox(height: 14),
         _buildAiComment(context),
-
         const SizedBox(height: 16),
       ],
     );
@@ -315,8 +253,8 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
           final color = val == 0
               ? Colors.grey[200]!
               : val > goal
-              ? AppColors.danger.withValues(alpha: 0.7)
-              : AppColors.primaryAccent;
+                  ? AppColors.danger.withValues(alpha: 0.7)
+                  : AppColors.primaryAccent;
 
           return Expanded(
             child: Column(
@@ -333,13 +271,11 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
                         color: isToday
                             ? AppColors.primary
                             : AppColors.textSecondary,
-                        fontWeight: isToday
-                            ? FontWeight.w600
-                            : FontWeight.normal,
+                        fontWeight:
+                            isToday ? FontWeight.w600 : FontWeight.normal,
                       ),
                     ),
                   ),
-
                 const SizedBox(height: 3),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 3),
@@ -353,15 +289,13 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 4),
                 Text(
                   days[i],
                   style: TextStyle(
                     fontSize: context.fs(9),
-                    color: isToday
-                        ? AppColors.primary
-                        : AppColors.textSecondary,
+                    color:
+                        isToday ? AppColors.primary : AppColors.textSecondary,
                     fontWeight: isToday ? FontWeight.w500 : FontWeight.normal,
                   ),
                 ),
@@ -394,7 +328,6 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
           width: 0.5,
         ),
       ),
-
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -406,7 +339,6 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
               color: AppColors.primary,
             ),
           ),
-
           const SizedBox(height: 4),
           Text(
             'Hiện tại dữ liệu còn ít. Hãy chăm chỉ ghi nhận bữa ăn mỗi ngày để AI có thể phân tích xu hướng dinh dưỡng của bạn nhé!',

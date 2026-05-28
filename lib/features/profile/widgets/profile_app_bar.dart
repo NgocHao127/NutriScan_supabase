@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../theme/app_responsive.dart';
 import '../../theme/app_theme.dart';
 import '../../../providers/user_provider.dart';
@@ -51,6 +52,8 @@ class ProfileAppBar extends ConsumerWidget {
             error: (error, stack) => const Text('Lỗi tải dữ liệu'),
             data: (user) {
               // Lấy dữ liệu an toàn
+              print(
+                  '=== USER name: ${user?.name}, email: ${user?.email}, uid: ${user?.id} ===');
               final name = user?.name ?? 'Người dùng';
               final age = user?.age ?? 0;
               final weight = user?.weight;
@@ -104,7 +107,6 @@ class ProfileAppBar extends ConsumerWidget {
                                     color: Colors.white,
                                   ),
                                 ),
-
                                 const SizedBox(height: 2),
                                 Text(
                                   'Thành viên từ tháng 4, 2026',
@@ -132,21 +134,17 @@ class ProfileAppBar extends ConsumerWidget {
                               ),
                               textStyle: TextStyle(fontSize: context.fs(11)),
                             ),
-                            onPressed: () {
-                              // TODO: Mở màn hình cập nhật tuổi, chiều cao, cân nặng
-                            },
+                            onPressed: () => context.push('/edit-profile'),
                             child: const Text('Sửa'),
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 12),
                       Center(
                         child: ConstrainedBox(
                           constraints: BoxConstraints(
-                            maxWidth: context.isDesktop
-                                ? 1000
-                                : double.infinity,
+                            maxWidth:
+                                context.isDesktop ? 1000 : double.infinity,
                           ),
                           child: Container(
                             decoration: BoxDecoration(
@@ -167,7 +165,7 @@ class ProfileAppBar extends ConsumerWidget {
                                 ),
                                 _buildInfoItem(
                                   context,
-                                  height == 0 ? '-' : '${height}cm',
+                                  height == null ? '-' : '${height}cm',
                                   'Chiều cao',
                                 ),
                                 _buildInfoItem(context, bmiStr, 'BMI'),
@@ -214,7 +212,6 @@ class ProfileAppBar extends ConsumerWidget {
                 ),
               ),
             ),
-
             const SizedBox(height: 2),
             Text(
               label,

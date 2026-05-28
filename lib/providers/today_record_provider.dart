@@ -1,24 +1,20 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/daily_record_model.dart';
 import 'api_provider.dart';
-import 'isar_provider.dart';
+import 'dart:async';
 
-final todayRecordProvider = FutureProvider<DailyRecordModel?>((ref) async {
-  final api = ref.watch(apiServiceProvider);
-  final isar = ref.read(isarProvider);
-  final now = DateTime.now();
-
-  // Thử lấy cache Isar (có thể implement logic lấy bản ghi ngày)
-  final cached = await ref.read(isarProvider).getDailyRecordByDate(now);
-
+// Dùng autoDispose để tự động làm mới dữ liệu khi người dùng thoát/vào lại màn hình
+final todayRecordProvider =
+    FutureProvider.autoDispose<DailyRecordModel?>((ref) async {
+  final mealService = ref.watch(mealServiceProvider);
   try {
-    final data = await api.getDailyRecord();
-    final record = DailyRecordModel.fromJson(data);
-    // Cache vào Isar (nếu cần)
-    await isar.cacheDailyRecord(record);
-    return record;
+    final data = await mealService.getDailyRecord();
+    print('=== DAILY RECORD DATA: $data ===');
+    if (data.isEmpty) return null;
+    return DailyRecordModel.fromJson(data);
   } catch (e) {
-    // Offline: lấy từ Isar
-    return cached;
+    print('=== TODAY ERROR: $e ===');
+    // Trả về null thay vì throw — hiện EmptyMealState thay vì error
+    return null;
   }
 });

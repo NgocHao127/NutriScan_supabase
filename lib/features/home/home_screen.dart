@@ -11,6 +11,7 @@ import 'widgets/home_sliver_app_bar.dart';
 
 import '../../providers/today_record_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../models/daily_record_model.dart';
 import '../../models/meal_entry_model.dart';
 
@@ -24,7 +25,10 @@ class HomeScreen extends ConsumerWidget {
 
     // Lấy tên người dùng
     final authState = ref.watch(authStateProvider);
-    final userName = authState.value?.displayName ?? 'Người dùng';
+    final userProfile = ref.watch(userProfileProvider);
+    final userName = authState.value?.userMetadata?['name'] as String? ??
+        userProfile.valueOrNull?.name ??
+        'Người dùng';
 
     return Scaffold(
       // Bọc toàn bộ màn hình bằng RefreshIndicator
@@ -52,9 +56,17 @@ class HomeScreen extends ConsumerWidget {
               child: ResponsiveWrapper(
                 useScroll: false,
                 child: todayAsync.when(
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (err, _) => _buildErrorView(ref),
+                  loading: () => const SizedBox(
+                    height: 300,
+                    child: Center(
+                        child: CircularProgressIndicator(
+                      color: AppColors.primary,
+                    )),
+                  ),
+                  error: (err, _) {
+                    print('=== TODAY ERROR: $err ===');
+                    return _buildErrorView(ref);
+                  },
                   data: (record) => _buildDataView(context, record),
                 ),
               ),

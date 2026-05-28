@@ -1,12 +1,11 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_responsive.dart';
 import '../theme/app_theme.dart';
 import '../widgets/auth_widgets.dart';
 import '../../providers/auth_provider.dart';
-import '../../core/api_service.dart';
 import '../../providers/api_provider.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -81,45 +80,36 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Future<void> _onRegister() async {
     if (!_validate()) return;
     setState(() => _isLoading = true);
-
     try {
-      // Đăng ký Firebase Auth
-      final userCredential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-            email: _emailCtrl.text.trim(),
-            password: _passwordCtrl.text,
+      await ref.read(authNotifierProvider.notifier).signUpWithEmail(
+            _emailCtrl.text.trim(),
+            _passwordCtrl.text,
+            _nameCtrl.text.trim(),
           );
-      final user = userCredential.user;
-      if (user != null) {
-        // Cập nhật tên hiển thị trên Firebase
-        await user.updateDisplayName(_nameCtrl.text.trim());
 
-        // Lấy token và gọi API backend để tạo user trong supabase
-        final idToken = await user.getIdToken();
-        final apiService = ref.read(apiServiceProvider);
-        await apiService.login(idToken!);
-
-        // Có thể gọi API cập nhật thêm thông tin (name) nếu backend hỗ trợ
-        // Hiện tại endpoint /auth/login chỉ tạo user với uid, email,
-        // bạn có thể mở rộng backend để nhận name.
-
-        if (mounted) {
-          context.go('/home');
-        }
-      }
-    } on FirebaseAuthException catch (e) {
-      String errorMsg = 'Đăng ký thất bại';
-      if (e.code == 'email-already-in-use') {
-        errorMsg = 'Email đã được sử dụng';
-      } else if (e.code == 'invalid-email') {
-        errorMsg = 'Email không hợp lệ';
-      } else if (e.code == 'week-password') {
-        errorMsg = 'Mật khẩu quá yếu';
+      // Đợi đến khi session có
+      final supabase = Supabase.instance.client;
+      int attempts = 0;
+      while (supabase.auth.currentSession == null && attempts < 10) {
+        await Future.delayed(const Duration(milliseconds: 300));
+        attempts++;
       }
 
+      if (supabase.auth.currentSession == null) {
+        throw Exception('Không thể xác thực, vui lòng thử lại');
+      }
+
+      // Gọi API để tạo profile ngay sau khi đăng ký
+      final userService = ref.read(userServiceProvider);
+      await userService.getProfile();
+
+      if (mounted) context.go('/home');
+    } on AuthException catch (e) {
       if (mounted) {
+        String msg = e.message;
+        if (msg.contains('already registered')) msg = 'Email đã được sử dụng';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMsg), backgroundColor: AppColors.danger),
+          SnackBar(content: Text(msg), backgroundColor: AppColors.danger),
         );
       }
     } catch (e) {
@@ -263,7 +253,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
               ),
               GestureDetector(
-                onTap: () => Navigator.pop(context),
+                onTap: () => context.go('/login'),
                 child: Text(
                   'Đăng nhập',
                   style: TextStyle(

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:nutriscan_be/features/theme/app_theme.dart';
+import 'package:nutriscan/features/theme/app_theme.dart';
 
 import 'widgets/scanning_view.dart';
 import 'widgets/loading_view.dart';
@@ -46,8 +46,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     });
 
     try {
-      final apiService = ref.read(apiServiceProvider);
-      final result = await apiService.analyzeFood(image.path);
+      final foodService = ref.read(foodServiceProvider);
+      final result = await foodService.analyzeFood(image.path);
       // result là List<dynamic> từ server, mỗi item có thể là Map chứa thông tin món ăn
       final foods = result.map((item) {
         return FoodItem(
@@ -83,11 +83,11 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   }
 
   void _onRetry() => setState(() {
-    _state = ScanState.scanning;
-    _detectedFoods = [];
-    _capturedImage = null;
-    _errorMessage = null;
-  });
+        _state = ScanState.scanning;
+        _detectedFoods = [];
+        _capturedImage = null;
+        _errorMessage = null;
+      });
 
   @override
   Widget build(BuildContext context) {
@@ -97,9 +97,9 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
         ScanState.scanning => ScanningView(onCapture: _pickImage),
         ScanState.loading => const LoadingView(),
         ScanState.result => ResultView(
-          foods: _detectedFoods,
-          onRetry: _onRetry,
-        ),
+            foods: _detectedFoods,
+            onRetry: _onRetry,
+          ),
       },
     );
   }

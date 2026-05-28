@@ -1,63 +1,70 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import '../core/api_service.dart';
-import 'api_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-// Provider FirebaseAuth instance
-final firebaseAuthProvider = Provider<FirebaseAuth>((ref) => FirebaseAuth.instance);
+final supabaseClientProvider = Provider<SupabaseClient>(
+  (ref) => Supabase.instance.client,
+);
 
-// Stream auth state
 final authStateProvider = StreamProvider<User?>((ref) {
-  return ref.watch(firebaseAuthProvider).authStateChanges();
+  return ref.watch(supabaseClientProvider).auth.onAuthStateChange.map((data) {
+    print(
+        '=== AUTH STREAM: ${data.event} user=${data.session?.user?.email} ===');
+    return data.session?.user;
+  });
 });
 
-// AuthNotifier để thực hiện signIn/signOut
 class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
-  final FirebaseAuth _auth;
-  final ApiService _api;
+  final SupabaseClient _supabase;
 
-  AuthNotifier(this._auth, this._api) : super(const AsyncLoading()) {
-    // Lắng nghe auth state
-    _auth.authStateChanges().listen((user) {
-      state = AsyncData(user);
+  AuthNotifier(this._supabase) : super(const AsyncLoading()) {
+    state = AsyncData(_supabase.auth.currentUser);
+    _supabase.auth.onAuthStateChange.listen((data) {
+      state = AsyncData(data.session?.user);
     });
+  }
+
+  Future<void> signInWithEmail(String email, String password) async {
+    state = const AsyncLoading();
+    try {
+      await _supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+    } catch (e) {
+      state = AsyncError(e, StackTrace.current);
+    }
+  }
+
+  Future<void> signUpWithEmail(
+      String email, String password, String name) async {
+    state = const AsyncLoading();
+    try {
+      await _supabase.auth.signUp(
+        email: email,
+        password: password,
+        data: {'name': name}, // lưu name vào metadata
+      );
+    } catch (e) {
+      state = AsyncError(e, StackTrace.current);
+    }
   }
 
   Future<void> signInWithGoogle() async {
     state = const AsyncLoading();
     try {
-      final googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) {
-        state = const AsyncData(null);
-        return;
-      }
-      final googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-      final userCredential = await _auth.signInWithCredential(credential);
-      final user = userCredential.user;
-      if (user != null) {
-        final idToken = await user.getIdToken();
-        // Gọi API backend để tạo/sync user trong Supabase
-        await _api.login(idToken!);
-      }
-      state = AsyncData(user);
+      await _supabase.auth.signInWithOAuth(OAuthProvider.google);
     } catch (e) {
       state = AsyncError(e, StackTrace.current);
     }
   }
 
   Future<void> signOut() async {
-    await _auth.signOut();
+    await _supabase.auth.signOut();
     state = const AsyncData(null);
   }
 }
 
-final authNotifierProvider = StateNotifierProvider<AuthNotifier, AsyncValue<User?>>((ref) {
-  final auth = ref.watch(firebaseAuthProvider);
-  final apiService = ref.watch(apiServiceProvider); // cần định nghĩa apiServiceProvider
-  return AuthNotifier(auth, apiService);
+final authNotifierProvider =
+    StateNotifierProvider<AuthNotifier, AsyncValue<User?>>((ref) {
+  return AuthNotifier(ref.watch(supabaseClientProvider));
 });

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nutriscan_be/app.dart'; // import đúng file chứa NutriScanApp
+import 'package:nutriscan/app.dart'; // import đúng file chứa NutriScanApp
 
 void main() {
   testWidgets('App khởi động thành công', (WidgetTester tester) async {

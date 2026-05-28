@@ -1,23 +1,24 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'api_exception.dart';
 import 'constants.dart';
 import '../global.dart';
 
+/// HTTP engine: Dio setup, token inject, token refresh, force logout.
+/// Dùng Supabase Auth thay vì Firebase Auth.
 class ApiService {
   late final Dio _dio;
-  final FirebaseAuth _auth;
+  final SupabaseClient _supabase;
 
-  bool _isRefeshing = false;
+  bool _isRefreshing = false;
   Completer<String>? _refreshCompleter;
 
-  // Callback force logout – sẽ được gán từ bên ngoài (provider)
   void Function()? onForceLogout;
 
-  ApiService({required String baseUrl, FirebaseAuth? auth})
-    : _auth = auth ?? FirebaseAuth.instance {
+  ApiService({required String baseUrl, SupabaseClient? supabase})
+      : _supabase = supabase ?? Supabase.instance.client {
     _dio = Dio(
       BaseOptions(
         baseUrl: baseUrl,
@@ -32,20 +33,19 @@ class ApiService {
     );
   }
 
-  // Gắn Firebase token vào header
+  // ─── Interceptors ──────────────────────────────────
+
   Future<void> _onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    final user = _auth.currentUser;
-    if (user != null) {
-      final token = await user.getIdToken();
-      options.headers['Authorization'] = 'Bearer $token';
+    final session = _supabase.auth.currentSession;
+    if (session != null) {
+      options.headers['Authorization'] = 'Bearer ${session.accessToken}';
     }
     handler.next(options);
   }
 
-  // Xử lý lỗi từ server
   Future<void> _onError(
     DioException error,
     ErrorInterceptorHandler handler,
@@ -56,7 +56,6 @@ class ApiService {
       return;
     }
 
-    // Ép kiểu an toàn từ dynamic
     final responseData = response.data;
     final Map<String, dynamic>? body = (responseData is Map)
         ? responseData.map((k, v) => MapEntry(k.toString(), v))
@@ -64,7 +63,7 @@ class ApiService {
 
     final errorCode = body?['error_code'] as String?;
 
-    // TOKEN_EXPIRED → refresh token
+    // TOKEN_EXPIRED → refresh Supabase session
     if (response.statusCode == 401 && errorCode == 'TOKEN_EXPIRED') {
       final retried = await _handleTokenExpired(error);
       if (retried != null) {
@@ -83,7 +82,6 @@ class ApiService {
       return;
     }
 
-    // Các lỗi khác → bọc thành ApiException
     handler.reject(
       DioException(
         requestOptions: error.requestOptions,
@@ -100,44 +98,43 @@ class ApiService {
   }
 
   Future<void> _forceLogout() async {
-    await _auth.signOut();
+    await _supabase.auth.signOut();
     final context = navigatorKey.currentContext;
     if (context != null) {
       GoRouter.of(context).go('/login');
     }
   }
 
-  // Refresh token với Completer chống race condition
+  /// Refresh Supabase session, chống race condition.
   Future<Response?> _handleTokenExpired(DioException error) async {
-    if (_isRefeshing) {
-      // Nếu đã có request đang refresh → chờ kết quả
+    if (_isRefreshing) {
       final newToken = await _refreshCompleter!.future;
       if (newToken.isEmpty) return null;
       return _retryRequest(error.requestOptions, newToken);
     }
 
-    _isRefeshing = true;
+    _isRefreshing = true;
     _refreshCompleter = Completer<String>();
 
     try {
-      final user = _auth.currentUser;
-      if (user == null) {
+      final session = _supabase.auth.currentSession;
+      if (session == null) {
         _refreshCompleter!.complete('');
         return null;
       }
-      final newToken = await user.getIdToken(true); // force refresh
-      if (newToken == null) {
+      final refreshed = await _supabase.auth.refreshSession();
+      if (refreshed.session == null) {
         _refreshCompleter!.complete('');
         return null;
       }
-
+      final newToken = refreshed.session!.accessToken;
       _refreshCompleter!.complete(newToken);
       return _retryRequest(error.requestOptions, newToken);
     } catch (_) {
       _refreshCompleter!.complete('');
       return null;
     } finally {
-      _isRefeshing = false;
+      _isRefreshing = false;
       _refreshCompleter = null;
     }
   }
@@ -153,54 +150,6 @@ class ApiService {
     );
   }
 
-  // ─── Các method API cụ thể ─────────────────────────
-
-  // POST /auth/login – gửi Firebase ID token lên backend để tạo/sync user
-  Future<void> login(String idToken) async {
-    await post('/auth/login', data: {'idToken': idToken});
-  }
-
-  // GET /users/me – lấy thông tin profile
-  Future<Map<String, dynamic>> getProfile() async {
-    final response = await get('/users/me');
-    return _mapFromResponse(response.data) ?? {};
-  }
-
-  // POST /food/analyze – phân tích ảnh món ăn
-  Future<List<dynamic>> analyzeFood(String imagePath) async {
-    final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(imagePath, filename: 'food.jpg'),
-    });
-    final response = await post('/food/analyze', data: formData);
-    final body = _mapFromResponse(response.data);
-    final items = body?['items'];
-    return (items is List) ? items : [];
-  }
-
-  // POST /meal/log – lưu bữa ăn mới
-  Future<Map<String, dynamic>> logMeal(
-    Map<String, dynamic> mealData,
-    String? updatedAt,
-  ) async {
-    mealData['updated_at'] = updatedAt;
-    final response = await post('/meal/log', data: mealData);
-    return _mapFromResponse(response.data) ?? {};
-  }
-
-  // GET /meal/daily – lấy tổng hợp dinh dưỡng ngày
-  Future<Map<String, dynamic>> getDailyRecord({String? date}) async {
-    final params = <String, dynamic>{};
-    if (date != null) params['date'] = date;
-    final response = await get('/meal/daily', params: params);
-    return _mapFromResponse(response.data) ?? {};
-  }
-
-  // PUT /user/me - cập nhật thông tin cá nhân
-  Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> data) async {
-    final response = await put('/users/me', data: data);
-    return _mapFromResponse(response.data) ?? {};
-  }
-
   // ─── Các method HTTP cơ bản ────────────────────────
   Future<Response> get(String path, {Map<String, dynamic>? params}) =>
       _dio.get(path, queryParameters: params);
@@ -211,8 +160,8 @@ class ApiService {
   Future<Response> put(String path, {dynamic data}) =>
       _dio.put(path, data: data);
 
-  // ─── Helper ép kiểu chung ──────────────
-  Map<String, dynamic>? _mapFromResponse(dynamic data) {
+  // ─── Helper ép kiểu ──────────────
+  Map<String, dynamic>? mapFromResponse(dynamic data) {
     if (data is Map) {
       return data.map((k, v) => MapEntry(k.toString(), v));
     }

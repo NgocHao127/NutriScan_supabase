@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,7 +7,6 @@ import '../widgets/auth_widgets.dart';
 import '../widgets/responsive_layout.dart';
 
 import '../../providers/auth_provider.dart'; // để dùng Google sign in
-import '../../providers/api_provider.dart'; // cung cấp ApiService
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -58,45 +56,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return ok;
   }
 
-  // Đăng nhập bằng email/password qua Firebase, sau đó gọi API backend
   Future<void> _onLogin() async {
     if (!_validate()) return;
     setState(() => _isLoading = true);
-
     try {
-      // Xác thực với firebase
-      final userCredential = await FirebaseAuth.instance
-          .signInWithEmailAndPassword(
-            email: _emailCtrl.text.trim(),
-            password: _passwordCtrl.text,
+      print('=== LOGGING IN ===');
+      await ref.read(authNotifierProvider.notifier).signInWithEmail(
+            _emailCtrl.text.trim(),
+            _passwordCtrl.text,
           );
-      final user = userCredential.user;
-      if (user != null) {
-        // Lấy token và gọi API login để sync user vào supabase (backend)
-        final idToken = await user.getIdToken();
-        final apiService = ref.read(apiServiceProvider);
-        await apiService.login(idToken!);
-        // Điều hướng sang màn hình chính
-        if (mounted) {
-          // Sử dụng gorouter để chuyển hướng
-          context.go('/home');
-        }
-      }
-    } on FirebaseAuthException catch (e) {
-      String errorMsg = 'Đăng nhập thất bại';
-      if (e.code == 'user-not-found') {
-        errorMsg = 'Tài khoản không tồn tại';
-      } else if (e.code == 'wrong-password') {
-        errorMsg = 'Mật khẩu không đúng';
-      } else if (e.code == 'invalid-email') {
-        errorMsg = 'Email không hợp lệ';
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMsg), backgroundColor: AppColors.danger),
-        );
-      }
+      print('=== LOGIN SUCCESS ===');
+      if (mounted) context.go('/home');
     } catch (e) {
+      print('=== LOGIN ERROR: $e ===');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Lỗi: $e'), backgroundColor: AppColors.danger),
@@ -151,7 +123,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               title: 'Chào mừng trở lại',
               subtitle: 'Đăng nhập để tiếp tục',
             ),
-
             const SizedBox(height: 10),
             _buildForm(context),
           ],
@@ -208,7 +179,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       title: 'Chào mừng trở lại',
                       subtitle: 'Đăng nhập để tiếp tục hành trình',
                     ),
-
                     const SizedBox(height: 20),
                     _buildForm(context),
                   ],
@@ -272,7 +242,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     color: Colors.white,
                   ),
                 ),
-
                 const SizedBox(height: 32),
                 const Text(
                   'NutriScan',
@@ -283,7 +252,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     letterSpacing: 1.2,
                   ),
                 ),
-
                 const SizedBox(height: 16),
                 Text(
                   'Theo dõi dinh dưỡng thông minh\nchỉ với một lần quét.',
@@ -317,7 +285,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             keyboardType: TextInputType.emailAddress,
             errorText: _emailError,
           ),
-
           const SizedBox(height: 14),
           AuthInput(
             label: 'Mật khẩu',
@@ -326,7 +293,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             isPassword: true,
             errorText: _passwordError,
           ),
-
           const SizedBox(height: 12),
           Align(
             alignment: Alignment.centerRight,
@@ -347,20 +313,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
           ),
-
           const SizedBox(height: 28),
           AuthButton(
             label: 'Đăng nhập',
             onPressed: _onLogin,
             isLoading: _isLoading,
           ),
-
           const SizedBox(height: 16),
           const OrDivider(),
-
           const SizedBox(height: 20),
           GoogleButton(label: 'Tiếp tục với Google', onPressed: _onGoogleLogin),
-
           const SizedBox(height: 32),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,

@@ -10,7 +10,6 @@ import 'widgets/weekly_tab_view.dart';
 import '../../models/daily_record_model.dart';
 import '../../models/meal_entry_model.dart';
 import '../../providers/api_provider.dart';
-import '../../providers/isar_provider.dart';
 
 class DiaryScreen extends ConsumerStatefulWidget {
   const DiaryScreen({super.key});
@@ -59,58 +58,30 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen>
     setState(() => _isLoading = true);
     try {
       final selectedDate = _weekDates[_selectedIndex];
-      final apiService = ref.read(apiServiceProvider);
-      final isar = ref.read(isarProvider);
+      final mealService = ref.read(mealServiceProvider);
 
       // Thử lấy từ cache isar trước
-      final cachedMeals = await isar.getMealsByDate(selectedDate);
-      if (cachedMeals.isNotEmpty) {
-        _currentMeals = cachedMeals;
-        _currentRecord = DailyRecordModel(
-          userId: cachedMeals.first.userId,
-          recordDate: selectedDate,
-          caloriesConsumed: cachedMeals.fold(0.0, (sum, m) => sum + m.calories),
-          protein: cachedMeals.fold(
-            0.0,
-            (sum, m) => sum + m.items.fold(0.0, (s, i) => s + i.protein),
-          ),
-          carbs: cachedMeals.fold(
-            0.0,
-            (sum, m) => sum + m.items.fold(0.0, (s, i) => s + i.carbs),
-          ),
-          fat: cachedMeals.fold(
-            0.0,
-            (sum, m) => sum + m.items.fold(0.0, (s, i) => s + i.fat),
-          ),
-          meals: cachedMeals,
-        );
-        setState(() => _isLoading = false);
-      }
-
-      // Gọi API để lấy dữ liệu mới nhất (sẽ cập nhật lại nếu online)
-      final data = await apiService.getDailyRecord(
+      final data = await mealService.getDailyRecord(
         date: selectedDate.toIso8601String().substring(0, 10),
       );
+    if (data.isNotEmpty) {
       final serverRecord = DailyRecordModel.fromJson(data);
-      // Cập nhật cache Isar nếu có meals mới
-      if (serverRecord.meals.isNotEmpty) {
-        await isar.deleteMealsByDate(selectedDate);
-        for (var meal in serverRecord.meals) {
-          meal.pendingSync = false;
-          meal.updatedAt = data['updated_at']?.toString();
-          await isar.saveMeal(meal);
-        }
-      }
       _currentRecord = serverRecord;
       _currentMeals = serverRecord.meals;
-    } catch (_) {
-      // Nếu lỗi (offline) và chưa có cache, giữ nguyên trạng thái rỗng
+    } else {
+      _currentRecord = null;
+      _currentMeals = [];
     }
+  } catch (_) {
+    _currentRecord = null;
+    _currentMeals = [];
+  }
     if (mounted) setState(() => _isLoading = false);
   }
 
   void _onDaySelected(int index) {
-    if (_selectedIndex == index) return; // Nếu chọn lại ngày đang xem thì không làm gì
+    if (_selectedIndex == index)
+      return; // Nếu chọn lại ngày đang xem thì không làm gì
     setState(() => _selectedIndex = index);
     _fetchDataForSelectedDay();
   }

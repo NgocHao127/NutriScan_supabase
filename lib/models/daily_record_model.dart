@@ -29,16 +29,18 @@ class DailyRecordModel {
     final mealsData = json['meals'];
     if (mealsData is List) {
       meals = mealsData
-        .map((m) => MealEntryModel.fromJson(m as Map<String, dynamic>))
-        .toList();
+          .map((m) => MealEntryModel.fromJson(m as Map<String, dynamic>))
+          .toList();
     }
 
     return DailyRecordModel(
       userId: json['user_id'] ?? '',
       // Nếu không có record_date, dùng ngày hôm nay
-      recordDate: DateTime.parse(json['record_date']?.toString() ?? ''),
-      caloriesGoal: (json['daily_calories_goal'] ?? json['calories_goal'])
-          ?.toDouble(),
+      recordDate: DateTime.parse(json['record_date']?.toString() ??
+          json['date']?.toString() ??
+          DateTime.now().toIso8601String().substring(0, 10)),
+      caloriesGoal:
+          (json['daily_calories_goal'] ?? json['calories_goal'])?.toDouble(),
       caloriesConsumed: (json['calories_consumed'] ?? 0).toDouble(),
       caloriesBurned: (json['calories_burned'] ?? 0).toDouble(),
       protein: (json['total_protein'] ?? 0).toDouble(),

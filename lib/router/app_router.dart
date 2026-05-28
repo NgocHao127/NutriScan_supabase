@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-// import 'package:nutriscan_be/providers/user_provider.dart';
 import '../providers/auth_provider.dart';
 import '../features/splash/splash_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
 import '../features/auth/forgot_password_screen.dart';
 import '../features/home/home_screen.dart';
+import '../features/home/add_meal_screen.dart';
 import '../features/diary/diary_screen.dart';
 import '../features/AI_Scan/scan_screen.dart';
 import '../features/profile/profile_screen.dart';
+import '../features/profile/edit_profile_screen.dart';
 import '../global.dart';
-
 import '../features/theme/app_theme.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -25,13 +25,12 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final authState = ref.watch(authStateProvider);
       final isLoading = authState is AsyncLoading;
-      final isLoggedIn = authState is AsyncData && authState.value != null;
 
-      // final userProfileAsync = ref.read(userProfileProvider);
-      // final hasCompletedOnboarding =
-      //     userProfileAsync is AsyncData &&
-      //     userProfileAsync.value?.name != null &&
-      //     userProfileAsync.value?.age != null;
+      // KIỂM TRA ĐĂNG NHẬP KIỂU SUPABASE:
+      final isLoggedIn = authState.value != null;
+
+      print(
+          '=== REDIRECT: isLoggedIn=$isLoggedIn, location=${state.matchedLocation} ===');
 
       final isSplash = state.matchedLocation == '/splash';
       final isAuthRoute = [
@@ -39,16 +38,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         '/register',
         '/forgot-password',
       ].contains(state.matchedLocation);
-      // final isOnboardingRoute = state.matchedLocation == '/onboarding';
 
-      // if (isLoading) return isSplash ? null : '/splash';
-      // if (!isLoggedIn) return isAuthRoute || isSplash ? null : '/login';
-      if (isLoading) return null; // Bỏ kẹt splash, để stream tự resolve
+      // Đang tải thì đứng im chờ stream resolve
+      if (isLoading) return null;
+
+      // Chưa đăng nhập mà vào màn hình khác auth/splash -> Đẩy về login
       if (!isLoggedIn) return isAuthRoute ? null : '/login';
-      // if (!hasCompletedOnboarding && !isOnboardingRoute) return '/onboarding';
-      // Đã đăng nhập, không cho vào splash/auth
-      // if (isSplash || isAuthRoute || isOnboardingRoute) return '/home';
+
+      // Đã đăng nhập mà cố vào auth/splash -> Đẩy vào trang chủ
       if (isSplash || isAuthRoute) return '/home';
+
       return null;
     },
     routes: [
@@ -59,11 +58,20 @@ final routerProvider = Provider<GoRouter>((ref) {
           path: '/register',
           builder: (context, state) => const RegisterScreen()),
       GoRoute(
-        path: '/forgot-password',
-        builder: (context, state) => const ForgotPasswordScreen(),
+          path: '/forgot-password',
+          builder: (context, state) => const ForgotPasswordScreen()),
+      GoRoute(
+        path: '/add-meal',
+        builder: (context, state) => AddMealScreen(
+          initialMealType: state.extra as String?,
+        ),
+      ),
+      GoRoute(
+        path: '/edit-profile',
+        builder: (context, state) => const EditProfileScreen(),
       ),
 
-      // Thêm ShellRoute bọc 4 màn hình có bottom nav
+      // ShellRoute bọc 4 màn hình có bottom nav
       ShellRoute(
         builder: (context, state, child) => MainShell(child: child),
         routes: [
@@ -79,8 +87,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
     ],
-    errorBuilder: (context, state) =>
-        Scaffold(body: Center(child: Text('Không tìm thấy trang'))),
+    errorBuilder: (context, state) => const Scaffold(
+      body: Center(child: Text('Không tìm thấy trang')),
+    ),
   );
 });
 
@@ -131,7 +140,8 @@ class MainShell extends StatelessWidget {
         },
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
-        selectedItemColor: AppColors.primary,
+        selectedItemColor: AppColors
+            .primary, // Đảm bảo AppColors đã được định nghĩa trong app_theme.dart
         unselectedItemColor: AppColors.textHint,
         selectedFontSize: 12,
         unselectedFontSize: 12,
@@ -166,6 +176,10 @@ class _AuthChangeNotifier extends ChangeNotifier {
   final Ref _ref;
 
   _AuthChangeNotifier(this._ref) {
-    _ref.listen(authStateProvider, (previous, next) => notifyListeners());
+    // Phải listen authStateProvider, không phải authNotifierProvider
+    _ref.listen(authStateProvider, (previous, next) {
+      print('=== AUTH CHANGED: ${next.value} ===');
+      notifyListeners();
+    });
   }
 }

@@ -7,6 +7,8 @@ import 'widgets/profile_app_bar.dart';
 import 'widgets/settings_tab.dart';
 import 'widgets/goal_tab.dart';
 
+import '../../providers/user_provider.dart';
+
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
@@ -23,6 +25,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     super.initState();
     // Khởi tạo controller cho 2 tab: Mục tiêu và Cài đặt
     _tabController = TabController(length: 2, vsync: this);
+    // Force fetch user profile mỗi khi vào screen
+    Future.microtask(() => ref.invalidate(userProfileProvider));
   }
 
   @override

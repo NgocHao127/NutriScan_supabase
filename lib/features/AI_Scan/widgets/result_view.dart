@@ -7,7 +7,6 @@ import '../../widgets/common_widgets.dart';
 import '../../../models/food_model.dart';
 import '../../../models/meal_entry_model.dart';
 import '../../../providers/api_provider.dart';
-import '../../../providers/isar_provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/today_record_provider.dart';
 
@@ -104,8 +103,8 @@ class _ResultViewState extends ConsumerState<ResultView> {
     final emojiFontSize = context.isDesktop
         ? 100.0
         : context.isTablet
-        ? 80.0
-        : (context.sw * 0.18).clamp(60.0, 120.0);
+            ? 80.0
+            : (context.sw * 0.18).clamp(60.0, 120.0);
 
     return Stack(
       fit: StackFit.expand,
@@ -271,12 +270,10 @@ class _ResultSheetState extends ConsumerState<ResultSheet> {
   Future<void> _saveToDiary(double actualCalories) async {
     setState(() => _isSaving = true);
     try {
-      final api = ref.read(apiServiceProvider);
-      final isar = ref.read(isarProvider);
+      final mealService = ref.read(mealServiceProvider);
       final user = ref.read(authStateProvider).value;
       if (user == null) throw Exception('Chưa đăng nhập');
 
-      // Tạo danh sách FoodItem đã nhân khẩu phần
       final multipliedFoods = widget.foods.map((f) {
         return FoodItem(
           name: f.name,
@@ -290,7 +287,6 @@ class _ResultSheetState extends ConsumerState<ResultSheet> {
 
       final totalCalories = multipliedFoods.fold(0.0, (s, f) => s + f.calories);
 
-      // Xác định loại bữa
       final hour = DateTime.now().hour;
       String mealType = 'Ăn vặt';
       if (hour >= 5 && hour <= 10) {
@@ -302,47 +298,30 @@ class _ResultSheetState extends ConsumerState<ResultSheet> {
       }
 
       final newMeal = MealEntryModel(
-        serverId: DateTime.now().millisecondsSinceEpoch.toString(),
-        userId: user.uid,
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        userId: user.id,
         name: 'Bữa ăn từ scan',
         mealType: mealType,
         mealTime: DateTime.now(),
         calories: totalCalories,
         items: multipliedFoods,
-        pendingSync: true,
       );
 
-      // Lưu local trước
-      await isar.saveMeal(newMeal);
+      await mealService.logMeal(newMeal.toJson());
 
-      // Gửi lên server nếu có mạng
-      try {
-        final response = await api.logMeal(newMeal.toJson(), null);
-        newMeal.pendingSync = false;
-        newMeal.updatedAt = response['updated_at']?.toString();
-        await isar.saveMeal(newMeal);
-      } catch (_) {
-        // Offline: vẫn giữ pendingSync = true
-      }
-
-      // Refresh lại dữ liệu ngày hôm nay
       ref.invalidate(todayRecordProvider);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Đã lưu vào nhật ký!'),
-          backgroundColor: Colors.green,
-        ),
+            content: Text('Đã lưu vào nhật ký!'),
+            backgroundColor: Colors.green),
       );
-      widget.onRetry(); // Quay lại màn hình scan
+      widget.onRetry();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Lỗi: ${e.toString()}'),
-          backgroundColor: AppColors.danger,
-        ),
+        SnackBar(content: Text('Lỗi: $e'), backgroundColor: AppColors.danger),
       );
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -360,9 +339,8 @@ class _ResultSheetState extends ConsumerState<ResultSheet> {
     // Cố định dp
     final thumbSize = context.iconSize(52, tablet: 58, desktop: 64).toDouble();
     final btnH = context.iconSize(44, tablet: 48, desktop: 52).toDouble();
-    final portionBtnSize = context
-        .iconSize(28, tablet: 32, desktop: 36)
-        .toDouble();
+    final portionBtnSize =
+        context.iconSize(28, tablet: 32, desktop: 36).toDouble();
 
     return Container(
       decoration: BoxDecoration(
@@ -409,7 +387,6 @@ class _ResultSheetState extends ConsumerState<ResultSheet> {
                     ),
                   ),
                 ),
-
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -422,7 +399,6 @@ class _ResultSheetState extends ConsumerState<ResultSheet> {
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-
                       const SizedBox(height: 3),
                       Text(
                         '$portion tô (${portionGrams}g)',
@@ -490,7 +466,6 @@ class _ResultSheetState extends ConsumerState<ResultSheet> {
                         size: portionBtnSize,
                       ),
                     ),
-
                     const SizedBox(width: 8),
                     Text(
                       '$portion tô',
@@ -499,7 +474,6 @@ class _ResultSheetState extends ConsumerState<ResultSheet> {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-
                     const SizedBox(width: 8),
                     GestureDetector(
                       onTap: () => setState(() => portion++),
@@ -525,7 +499,6 @@ class _ResultSheetState extends ConsumerState<ResultSheet> {
                     progress: (actualProtein / 70).clamp(0.0, 1.0),
                   ),
                 ),
-
                 const SizedBox(width: 6),
                 Expanded(
                   child: MacroCard(
@@ -535,7 +508,6 @@ class _ResultSheetState extends ConsumerState<ResultSheet> {
                     progress: (actualCarb / 220).clamp(0.0, 1.0),
                   ),
                 ),
-
                 const SizedBox(width: 6),
                 Expanded(
                   child: MacroCard(
@@ -569,9 +541,8 @@ class _ResultSheetState extends ConsumerState<ResultSheet> {
                         ),
                         elevation: 0,
                       ),
-                      onPressed: _isSaving
-                          ? null
-                          : () => _saveToDiary(actualCalories),
+                      onPressed:
+                          _isSaving ? null : () => _saveToDiary(actualCalories),
                       child: _isSaving
                           ? SizedBox(
                               width: btnH * 0.6,
@@ -591,7 +562,6 @@ class _ResultSheetState extends ConsumerState<ResultSheet> {
                     ),
                   ),
                 ),
-
                 const SizedBox(width: 8),
                 GestureDetector(
                   onTap: widget.onRetry,

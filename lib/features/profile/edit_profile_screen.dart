@@ -150,7 +150,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     setState(() => _isSaving = true);
 
     try {
-      final apiService = ref.read(apiServiceProvider);
+      final userService = ref.read(userServiceProvider);
       final updatedData = {
         'name': _nameCtrl.text.trim(),
         'age': int.tryParse(_ageCtrl.text) ?? 0,
@@ -159,13 +159,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         'gender': _selectedGender,
         'goal': _selectedGoal,
         'activity_level': _selectedActivity,
-        'calorie_goal':
-            int.tryParse(_calorieCtrl.text) ??
+        'calorie_goal': int.tryParse(_calorieCtrl.text) ??
             2000, // Mặc định nếu không nhập sẽ là 2000 calo
       };
 
       // Gọi API cập nhật profile
-      await apiService.updateProfile(updatedData);
+      await userService.updateProfile(updatedData);
 
       // Sau khi update, invalidate userProfileProvider để load lại
       ref.invalidate(userProfileProvider);
@@ -230,7 +229,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             controller: _nameCtrl,
                             errorText: _nameError,
                           ),
-
                           const SizedBox(height: 14),
                           Row(
                             children: [
@@ -242,7 +240,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                                   keyboardType: TextInputType.number,
                                 ),
                               ),
-
                               const SizedBox(width: 12),
                               Expanded(
                                 child: _DropdownField(
@@ -268,6 +265,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                                   keyboardType: TextInputType.number,
                                 ),
                               ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: AuthInput(
+                                  label: 'Cân nặng (kg)',
+                                  placeholder: '65',
+                                  controller: _weightCtrl,
+                                  keyboardType: TextInputType.number,
+                                ),
+                              ),
                             ],
                           ),
                           const _SectionDivider(),
@@ -282,7 +288,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             onChanged: (v) =>
                                 setState(() => _selectedActivity = v),
                           ),
-
                           const SizedBox(height: 14),
                           AuthInput(
                             label: 'Mục tiêu calo mỗi ngày (kcal)',
@@ -290,7 +295,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             controller: _calorieCtrl,
                             keyboardType: TextInputType.number,
                           ),
-
                           const SizedBox(height: 28),
                           AuthButton(
                             label: 'Lưu thay đổi',
@@ -347,7 +351,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-
               const SizedBox(height: 4),
               Text(
                 'Cập nhật thông tin cá nhân',
@@ -389,7 +392,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               ),
             ),
           ),
-
           const SizedBox(height: 10),
           GestureDetector(
             onTap: () {
@@ -410,13 +412,19 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   }
 
   Widget _buildGoalGrid(BuildContext context) {
+    final ratio = context.isDesktop
+        ? 1.0
+        : context.isTablet
+            ? 1.0
+            : 1.3;
+
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisSpacing: 10,
       mainAxisSpacing: 10,
-      childAspectRatio: 2.4,
+      childAspectRatio: ratio,
       children: _goals.map((g) {
         final (label, icon, sub) = g;
         final isSelected = _selectedGoal == label;
@@ -461,7 +469,6 @@ class _DropdownField extends StatelessWidget {
             color: AppColors.textPrimary,
           ),
         ),
-
         const SizedBox(height: 5),
         DropdownButtonFormField<String>(
           initialValue: value,
@@ -513,7 +520,6 @@ class _DropdownField extends StatelessWidget {
               .toList(),
           onChanged: onChanged,
         ),
-
         const SizedBox(height: 14),
       ],
     );

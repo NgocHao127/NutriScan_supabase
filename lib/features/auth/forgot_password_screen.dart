@@ -1,5 +1,5 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_responsive.dart';
 import '../widgets/auth_widgets.dart';
@@ -26,7 +26,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   void _onSend() async {
     setState(() => _emailError = null);
-
     if (_emailCtrl.text.trim().isEmpty) {
       setState(() => _emailError = 'Vui lòng nhập email');
       return;
@@ -35,35 +34,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       setState(() => _emailError = 'Email không hợp lệ');
       return;
     }
-
     setState(() => _isLoading = true);
-
     try {
-      // Gửi email đặt lại mật khẩu qua Firebase Auth
-      await FirebaseAuth.instance.sendPasswordResetEmail(
-        email: _emailCtrl.text.trim(),
+      await Supabase.instance.client.auth.resetPasswordForEmail(
+        _emailCtrl.text.trim(),
       );
-
       if (!mounted) return;
       setState(() {
         _isLoading = false;
         _emailSent = true;
       });
-    } on FirebaseAuthException catch (e) {
+    } catch (e) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        if (e.code == 'user-not-found') {
-          _emailError == 'Email không tồn tại trong hệ thống';
-        } else {
-          _emailError = 'Không thể gửi email. Vui lòng thử lại.';
-        }
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-        _emailError = 'Lỗi kết nối. Vui lòng thử lại.';
+        _emailError = 'Không thể gửi email. Vui lòng thử lại.';
       });
     }
   }
@@ -108,7 +93,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               ),
             ),
           ),
-
           const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,7 +105,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   color: Colors.white,
                 ),
               ),
-
               const SizedBox(height: 2),
               Text(
                 'Đặt lại qua email',
@@ -160,7 +143,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   size: 18,
                   color: AppColors.primary,
                 ),
-
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -211,7 +193,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           if (_emailSent) ...[
             const SizedBox(height: 28),
             const Divider(color: Color(0xFFEEEEEE)),
-
             const SizedBox(height: 20),
             Text(
               'Email đã được gửi',
@@ -221,7 +202,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 color: const Color(0xFF1A1A1A),
               ),
             ),
-
             const SizedBox(height: 10),
             Container(
               padding: const EdgeInsets.all(14),
@@ -247,7 +227,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           color: AppColors.primary,
                         ),
                       ),
-
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
@@ -273,7 +252,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 10),
                   Text(
                     'Link hết hạn sau 15 phút. Không thấy email? Kiểm tra thư mục spam.',
@@ -283,7 +261,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       height: 1.5,
                     ),
                   ),
-                  
                   const SizedBox(height: 12),
                   GestureDetector(
                     onTap: _onSend,

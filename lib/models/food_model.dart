@@ -1,15 +1,10 @@
-import 'package:isar/isar.dart';
-
-part 'food_model.g.dart';
-
-@embedded
 class FoodItem {
-  late String name;
-  late double calories;
-  late double protein;
-  late double carbs;
-  late double fat;
-  late String? portion;
+  final String name;
+  final double calories;
+  final double protein;
+  final double carbs;
+  final double fat;
+  final String? portion;
 
   FoodItem({
     this.name = '',
