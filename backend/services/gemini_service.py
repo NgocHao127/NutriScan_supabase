@@ -44,3 +44,17 @@ async def analyze_food_image(image_bytes: bytes) -> list[dict]:
         logger.warning("gemini_fallback_used", error=str(e))
         # Fallback: Trả về một món ước lượng an toàn
         return [{"name": "Món ăn chưa xác định", "calories": 350.0, "protein": 15.0, "carbs": 30.0, "fat": 12.0, "portion": "1 phần"}]
+
+async def generate_weekly_summary(data: dict) -> str:
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    prompt = f"""
+Bạn là chuyên gia dinh dưỡng. Hãy viết nhận xét ngắn 3-4 câu bằng tiếng Việt,
+thân thiện và động viên dựa trên dữ liệu tuần này:
+- Trung bình {data['avg_calories']} kcal/ngày
+- Protein: {data['avg_protein']}g | Carbs: {data['avg_carbs']}g | Fat: {data['avg_fat']}g
+- Số ngày ghi nhận: {data['active_days']}/7 ngày
+
+Nhận xét nên: khen ngợi điểm tốt, chỉ ra điểm cần cải thiện, kết bằng câu động viên.
+"""
+    response = model.generate_content(prompt)
+    return response.text

@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import foods
-from routers import users, meals
+from routers import foods, users, meals, weekly_summary
 from logging_config import setup_logging
 from middleware import app_exception_handler, general_exception_handler
 from exceptions import AppException
@@ -24,6 +23,7 @@ app.add_exception_handler(Exception, general_exception_handler)
 app.include_router(users.router, prefix="/users", tags=["Users"])
 app.include_router(foods.router, prefix="/foods", tags=["Foods"])
 app.include_router(meals.router, prefix="/meal", tags=["Meals"])
+app.include_router(weekly_summary.router, prefix="/api", tags=["Weekly Summary"])
 
 @app.get("/health")
 def health():

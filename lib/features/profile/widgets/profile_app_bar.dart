@@ -44,8 +44,6 @@ class ProfileAppBar extends ConsumerWidget {
             error: (error, stack) => const Text('Lỗi tải dữ liệu'),
             data: (user) {
               // Lấy dữ liệu an toàn
-              print(
-                  '=== USER name: ${user?.name}, email: ${user?.email}, uid: ${user?.id} ===');
               final name = user?.name ?? 'Người dùng';
               final age = user?.age ?? 0;
               final initials = _getInitials(name);

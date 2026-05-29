@@ -3,9 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app.dart';
 import 'package:app_links/app_links.dart';
+import 'core/services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Khởi tạo notification service
+  await NotificationService().init();
 
   await Supabase.initialize(
     url: 'https://weuomrbfzfbiisncqtnz.supabase.co',
@@ -19,7 +23,6 @@ Future<void> main() async {
   // Lắng nghe deep link từ browser
   final appLinks = AppLinks();
   appLinks.uriLinkStream.listen((uri) async {
-    print('=== DEEP LINK: $uri ===');
     if (uri.queryParameters.containsKey('code')) {
       await Supabase.instance.client.auth.exchangeCodeForSession(
         uri.queryParameters['code']!,

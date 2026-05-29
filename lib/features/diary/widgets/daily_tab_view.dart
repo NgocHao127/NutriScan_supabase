@@ -3,6 +3,8 @@ import '../../theme/app_responsive.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common_widgets.dart';
 
+import '../../widgets/meal_group_list.dart';
+
 import '../../../models/daily_record_model.dart';
 import '../../../models/meal_entry_model.dart';
 
@@ -40,7 +42,7 @@ class DailyTabView extends StatelessWidget {
         const SizedBox(height: 8),
         _buildMacroRow(context),
         const SizedBox(height: 14),
-        MealsGroups(meals),
+        MealGroupList(meals: meals),
         const SizedBox(height: 16),
       ],
     );
@@ -66,7 +68,7 @@ class DailyTabView extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 32),
-        Expanded(child: MealsGroups(meals, useGrid: true)),
+        Expanded(child: MealGroupList(meals: meals)),
       ],
     );
   }
@@ -168,182 +170,6 @@ class MacroMini extends StatelessWidget {
               backgroundColor: color.withValues(alpha: 0.12),
               valueColor: AlwaysStoppedAnimation<Color>(color),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class MealsGroups extends StatelessWidget {
-  final List<MealEntryModel> meals;
-  final bool useGrid;
-
-  const MealsGroups(this.meals, {super.key, this.useGrid = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final groupedMeals = <String, List<MealEntryModel>>{};
-    for (final m in meals) {
-      groupedMeals.putIfAbsent(m.mealType, () => []).add(m);
-    }
-
-    return Column(
-      children: [
-        ...['Bữa sáng', 'Bữa trưa', 'Bữa tối', 'Ăn vặt'].map((type) {
-          final items = groupedMeals[type] ?? [];
-          if (items.isEmpty) return const SizedBox.shrink(); // ẩn nếu không có
-          final totalCal = items.fold(0.0, (s, m) => s + m.calories).toInt();
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    type,
-                    style: TextStyle(
-                      fontSize: context.fs(11),
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Container(
-                      height: 0.5,
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                    ),
-                  ),
-                  if (items.isNotEmpty) ...[
-                    const SizedBox(width: 8),
-                    Text(
-                      '$totalCal kcal',
-                      style: TextStyle(
-                        fontSize: context.fs(11),
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 6),
-              if (useGrid && items.length > 1)
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                    childAspectRatio: 4,
-                  ),
-                  itemCount: items.length,
-                  itemBuilder: (_, index) => MealRow(items[index]),
-                )
-              else
-                ...items.map((m) => MealRow(m)),
-              const SizedBox(height: 10),
-            ],
-          );
-        }),
-      ],
-    );
-  }
-}
-
-class MealRow extends StatelessWidget {
-  final MealEntryModel meal;
-
-  const MealRow(this.meal, {super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final iconSize = context.iconSize(32, tablet: 36, desktop: 40);
-
-    // Format thời gian từ DateTime
-    final timeStr =
-        "${meal.mealTime.hour.toString().padLeft(2, '0')}:${meal.mealTime.minute.toString().padLeft(2, '0')}";
-
-    // Tính macro thực tế từ items
-    double protein = 0, carbs = 0, fat = 0;
-    for (var item in meal.items) {
-      protein += item.protein;
-      carbs += item.carbs;
-      fat += item.fat;
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-      decoration: BoxDecoration(
-        color: AppColors.bgCard,
-        borderRadius: BorderRadius.circular(context.cardRadius),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.1),
-          width: 0.5,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: iconSize,
-            height: iconSize,
-            decoration: BoxDecoration(
-              color: AppColors.primaryLight,
-              borderRadius: BorderRadius.circular(iconSize * 0.28),
-            ),
-            child: Center(
-              child: Text(
-                '🍲', // Thay emoji tuỳ ý
-                style: TextStyle(fontSize: iconSize * 0.52),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  meal.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: context.fs(12),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(
-                  '1 phần · $timeStr',
-                  style: TextStyle(
-                    fontSize: context.fs(10),
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '${meal.calories.toInt()} kcal',
-                style: TextStyle(
-                  fontSize: context.fs(12),
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.primary,
-                ),
-              ),
-              Text(
-                'P${protein.toInt()} · C${carbs.toInt()} · F${fat.toInt()}g',
-                style: TextStyle(
-                  fontSize: context.fs(10),
-                  color: AppColors.textHint,
-                ),
-              ),
-            ],
           ),
         ],
       ),

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_responsive.dart';
 import '../theme/app_theme.dart';
 import '../widgets/auth_widgets.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/api_provider.dart';
+
+import 'auth_controller/auth_state.dart';
+import 'auth_controller/register_controller.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -21,12 +21,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
 
-  bool _isLoading = false;
-  String? _nameError;
-  String? _emailError;
-  String? _passwordError;
-  String? _confirmError;
-
   @override
   void dispose() {
     _nameCtrl.dispose();
@@ -36,111 +30,24 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     super.dispose();
   }
 
-  bool _validate() {
-    setState(() {
-      _nameError = null;
-      _emailError = null;
-      _passwordError = null;
-      _confirmError = null;
-    });
-    bool ok = true;
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(registerControllerProvider);
+    final controller = ref.read(registerControllerProvider.notifier);
 
-    if (_nameCtrl.text.trim().isEmpty) {
-      setState(() => _nameError = 'Vui lòng nhập họ tên');
-      ok = false;
-    }
-
-    if (_emailCtrl.text.trim().isEmpty) {
-      setState(() => _emailError = 'Vui lòng nhập email');
-      ok = false;
-    } else if (!_emailCtrl.text.contains('@')) {
-      setState(() => _emailError = 'Email không hợp lệ');
-      ok = false;
-    }
-
-    if (_passwordCtrl.text.isEmpty) {
-      setState(() => _passwordError = 'Vui lòng nhập mật khẩu');
-      ok = false;
-    } else if (_passwordCtrl.text.length < 6) {
-      setState(() => _passwordError = 'Mật khẩu tối thiểu 6 ký tự');
-      ok = false;
-    }
-
-    if (_confirmCtrl.text.isEmpty) {
-      setState(() => _confirmError = 'Vui lòng xác nhận mật khẩu');
-      ok = false;
-    } else if (_confirmCtrl.text != _passwordCtrl.text) {
-      setState(() => _confirmError = 'Mật khẩu không khớp');
-      ok = false;
-    }
-
-    return ok;
-  }
-
-  Future<void> _onRegister() async {
-    if (!_validate()) return;
-    setState(() => _isLoading = true);
-    try {
-      await ref.read(authNotifierProvider.notifier).signUpWithEmail(
-            _emailCtrl.text.trim(),
-            _passwordCtrl.text,
-            _nameCtrl.text.trim(),
-          );
-
-      // Đợi đến khi session có
-      final supabase = Supabase.instance.client;
-      int attempts = 0;
-      while (supabase.auth.currentSession == null && attempts < 10) {
-        await Future.delayed(const Duration(milliseconds: 300));
-        attempts++;
-      }
-
-      if (supabase.auth.currentSession == null) {
-        throw Exception('Không thể xác thực, vui lòng thử lại');
-      }
-
-      // Gọi API để tạo profile ngay sau khi đăng ký
-      final userService = ref.read(userServiceProvider);
-      await userService.getProfile();
-
-      if (mounted) context.go('/home');
-    } on AuthException catch (e) {
-      if (mounted) {
-        String msg = e.message;
-        if (msg.contains('already registered')) msg = 'Email đã được sử dụng';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), backgroundColor: AppColors.danger),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e'), backgroundColor: AppColors.danger),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  void _onGoogleRegister() async {
-    try {
-      await ref.read(authNotifierProvider.notifier).signInWithGoogle();
-      // Router tự chuyển hướng
-    } catch (e) {
-      if (mounted) {
+    ref.listen(registerControllerProvider, (_, next) {
+      if (next.status == AuthStatus.success) {
+        context.go('/home');
+      } else if (next.status == AuthStatus.error && next.errorMessage != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi đăng ký google: $e'),
+            content: Text(next.errorMessage!),
             backgroundColor: AppColors.danger,
           ),
         );
       }
-    }
-  }
+    });
 
-  @override
-  Widget build(BuildContext context) {
     return Theme(
       data: ThemeData(brightness: Brightness.light),
       child: Scaffold(
@@ -165,7 +72,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 title: 'Tạo tài khoản',
                 subtitle: 'Bắt đầu hành trình dinh dưỡng',
               ),
-              _buildForm(context),
+              _buildForm(context, state, controller),
             ],
           ),
         ),
@@ -173,7 +80,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
-  Widget _buildForm(BuildContext context) {
+  Widget _buildForm(BuildContext context, RegisterState state,
+      RegisterController controller) {
     return Container(
       color: AppColors.bgPage,
       padding: EdgeInsets.fromLTRB(context.hPad, 20, context.hPad, 32),
@@ -184,7 +92,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             label: 'Họ và tên',
             placeholder: 'Nguyễn Minh Khoa',
             controller: _nameCtrl,
-            errorText: _nameError,
+            errorText: state.nameError,
           ),
 
           const SizedBox(height: 14),
@@ -193,7 +101,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             placeholder: 'email@gmail.com',
             controller: _emailCtrl,
             keyboardType: TextInputType.emailAddress,
-            errorText: _emailError,
+            errorText: state.emailError,
           ),
 
           const SizedBox(height: 14),
@@ -206,7 +114,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 placeholder: '••••••••',
                 controller: _passwordCtrl,
                 isPassword: true,
-                errorText: _passwordError,
+                errorText: state.passwordError,
               ),
               ValueListenableBuilder(
                 valueListenable: _passwordCtrl,
@@ -222,14 +130,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             placeholder: 'Nhập lại mật khẩu',
             controller: _confirmCtrl,
             isPassword: true,
-            errorText: _confirmError,
+            errorText: state.confirmError,
           ),
 
           const SizedBox(height: 22),
           AuthButton(
             label: 'Tạo tài khoản',
-            onPressed: _onRegister,
-            isLoading: _isLoading,
+            onPressed: () => controller.register(
+              _nameCtrl.text,
+              _emailCtrl.text,
+              _passwordCtrl.text,
+              _confirmCtrl.text,
+            ),
+            isLoading: state.isLoading,
           ),
 
           const SizedBox(height: 16),
@@ -238,7 +151,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           const SizedBox(height: 16),
           GoogleButton(
             label: 'Đăng ký với Google',
-            onPressed: _onGoogleRegister,
+            onPressed: controller.registerWithGoogle,
           ),
 
           const SizedBox(height: 24),

@@ -21,8 +21,10 @@ async def update_user(user_id: str, data: dict):
         'name', 'email', 'age', 'gender', 'height', 'weight',
         'goal', 'activity_level', 'calorie_goal',
         'protein_goal', 'carbs_goal', 'fat_goal',
-        'body_shape'
+        'body_shape',
+        'notify_meal', 'notify_weekly', 'notify_alert',
     }
+
     filtered = {k: v for k, v in data.items() if k in allowed_fields}
     
     print(f"=== UPDATE USER: uid={user_id}, data={filtered} ===")

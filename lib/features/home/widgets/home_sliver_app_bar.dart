@@ -81,9 +81,9 @@ class CaloRingBow extends StatelessWidget {
     final ringSize = context.caloRingSize;
 
     // Tính toán số liệu an toàn
-    final consumed = record?.caloriesConsumed ?? 0.0;
-    final goal = record?.caloriesGoal ?? 2000.0;
-    final progress = (consumed / goal).clamp(0.0, 1.0);
+    final consumed = record.safeConsumed;
+    final goal = record.safeGoal;
+    final progress = record.progressRatio;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -117,7 +117,7 @@ class CaloRingBow extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '${consumed.toInt()}',
+                '$consumed',
                 style: TextStyle(
                   fontSize: context.fs(11),
                   fontWeight: FontWeight.w500,
@@ -125,7 +125,7 @@ class CaloRingBow extends StatelessWidget {
                 ),
               ),
               Text(
-                '${goal.toInt()}',
+                '$goal',
                 style: TextStyle(
                   fontSize: context.fs(8),
                   color: AppColors.onPrimary,
@@ -152,19 +152,19 @@ class CaloRingBow extends StatelessWidget {
                   children: [
                     // Tạm thời để 0g vì bảng meal_entries của ta tập trung vào Calo trước
                     MiniMacro(
-                      value: '${(record?.protein ?? 0).toStringAsFixed(0)}g',
+                      value: '${record.safeProtein}g',
                       label: 'Protein',
                     ),
 
                     SizedBox(width: 6),
                     MiniMacro(
-                      value: '${(record?.carbs ?? 0).toStringAsFixed(0)}g',
+                      value: '${record.safeCarbs}g',
                       label: 'Carb',
                     ),
 
                     SizedBox(width: 6),
                     MiniMacro(
-                      value: '${(record?.fat ?? 0).toStringAsFixed(0)}g',
+                      value: '${record.safeFat}g',
                       label: 'Fat',
                     ),
                   ],

@@ -178,7 +178,6 @@ class _AuthChangeNotifier extends ChangeNotifier {
   _AuthChangeNotifier(this._ref) {
     // Phải listen authStateProvider, không phải authNotifierProvider
     _ref.listen(authStateProvider, (previous, next) {
-      print('=== AUTH CHANGED: ${next.value} ===');
       notifyListeners();
     });
   }

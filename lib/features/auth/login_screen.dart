@@ -6,7 +6,8 @@ import '../theme/app_theme.dart';
 import '../widgets/auth_widgets.dart';
 import '../widgets/responsive_layout.dart';
 
-import '../../providers/auth_provider.dart'; // để dùng Google sign in
+import 'auth_controller/auth_state.dart';
+import 'auth_controller/login_controller.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -19,10 +20,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
 
-  bool _isLoading = false;
-  String? _emailError;
-  String? _passwordError;
-
   @override
   void dispose() {
     _emailCtrl.dispose();
@@ -30,74 +27,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  bool _validate() {
-    setState(() {
-      _emailError = null;
-      _passwordError = null;
-    });
-    bool ok = true;
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(loginControllerProvider);
+    final controller = ref.read(loginControllerProvider.notifier);
 
-    if (_emailCtrl.text.trim().isEmpty) {
-      setState(() => _emailError = 'Vui lòng nhập email');
-      ok = false;
-    } else if (!_emailCtrl.text.contains('@')) {
-      setState(() => _emailError = 'Email không hợp lệ');
-      ok = false;
-    }
-
-    if (_passwordCtrl.text.isEmpty) {
-      setState(() => _passwordError = 'Vui lòng nhập mật khẩu');
-      ok = false;
-    } else if (_passwordCtrl.text.length < 6) {
-      setState(() => _passwordError = 'Mật khẩu tối thiểu 6 ký tự');
-      ok = false;
-    }
-
-    return ok;
-  }
-
-  Future<void> _onLogin() async {
-    if (!_validate()) return;
-    setState(() => _isLoading = true);
-    try {
-      print('=== LOGGING IN ===');
-      await ref.read(authNotifierProvider.notifier).signInWithEmail(
-            _emailCtrl.text.trim(),
-            _passwordCtrl.text,
-          );
-      print('=== LOGIN SUCCESS ===');
-      if (mounted) context.go('/home');
-    } catch (e) {
-      print('=== LOGIN ERROR: $e ===');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e'), backgroundColor: AppColors.danger),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  // Đăng nhập Google dùng Riverpod auth notifier
-  void _onGoogleLogin() async {
-    try {
-      await ref.read(authNotifierProvider.notifier).signInWithGoogle();
-      // Sau khi thành công, router tự chuyển hướng nhờ redirect
-    } catch (e) {
-      if (mounted) {
+    // Lắng nghe kết quả
+    ref.listen(loginControllerProvider, (_, next) {
+      if (next.status == AuthStatus.success) {
+        context.go('/home');
+      } else if (next.status == AuthStatus.error && next.errorMessage != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi đăng nhập Google: $e'),
+            content: Text(next.errorMessage!),
             backgroundColor: AppColors.danger,
           ),
         );
       }
-    }
-  }
+    });
 
-  @override
-  Widget build(BuildContext context) {
     return Theme(
       // Ép light mode cho toàn màn hình auth — tránh lỗi dark mode
       data: ThemeData(brightness: Brightness.light),
@@ -105,15 +53,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         backgroundColor: AppColors.bgPage,
         resizeToAvoidBottomInset: true,
         body: ResponsiveLayout(
-          mobile: _buildMobileLayout(context),
-          tablet: _buildTabletLayout(context),
-          desktop: _buildDesktopLayout(context),
+          mobile: _buildMobileLayout(context, state, controller),
+          tablet: _buildTabletLayout(context, state, controller),
+          desktop: _buildDesktopLayout(context, state, controller),
         ),
       ),
     );
   }
 
-  Widget _buildMobileLayout(BuildContext context) {
+  Widget _buildMobileLayout(
+      BuildContext context, LoginState state, LoginController controller) {
     return SingleChildScrollView(
       child: SafeArea(
         child: Column(
@@ -124,14 +73,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               subtitle: 'Đăng nhập để tiếp tục',
             ),
             const SizedBox(height: 10),
-            _buildForm(context),
+            _buildForm(context, state, controller),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTabletLayout(BuildContext context) {
+  Widget _buildTabletLayout(
+      BuildContext context, LoginState state, LoginController controller) {
     return Center(
       child: SingleChildScrollView(
         child: Container(
@@ -153,7 +103,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 title: 'Chào mừng trở lại',
                 subtitle: 'Đăng nhập để tiếp tục',
               ),
-              _buildForm(context),
+              _buildForm(context, state, controller),
             ],
           ),
         ),
@@ -161,7 +111,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildDesktopLayout(BuildContext context) {
+  Widget _buildDesktopLayout(
+      BuildContext context, LoginState state, LoginController controller) {
     return Row(
       children: [
         Expanded(child: _buildDesktopBanner()),
@@ -180,7 +131,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       subtitle: 'Đăng nhập để tiếp tục hành trình',
                     ),
                     const SizedBox(height: 20),
-                    _buildForm(context),
+                    _buildForm(context, state, controller),
                   ],
                 ),
               ),
@@ -271,7 +222,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildForm(BuildContext context) {
+  Widget _buildForm(
+      BuildContext context, LoginState state, LoginController controller) {
     return Container(
       color: Colors.transparent,
       padding: EdgeInsets.fromLTRB(context.hPad, 10, context.hPad, 32),
@@ -283,7 +235,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             placeholder: 'minhkhoa@gmail.com',
             controller: _emailCtrl,
             keyboardType: TextInputType.emailAddress,
-            errorText: _emailError,
+            errorText: state.emailError,
           ),
           const SizedBox(height: 14),
           AuthInput(
@@ -291,7 +243,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             placeholder: '••••••••',
             controller: _passwordCtrl,
             isPassword: true,
-            errorText: _passwordError,
+            errorText: state.passwordError,
           ),
           const SizedBox(height: 12),
           Align(
@@ -316,13 +268,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           const SizedBox(height: 28),
           AuthButton(
             label: 'Đăng nhập',
-            onPressed: _onLogin,
-            isLoading: _isLoading,
+            onPressed: () => controller.login(
+              _emailCtrl.text,
+              _passwordCtrl.text,
+            ),
+            isLoading: state.isLoading,
           ),
           const SizedBox(height: 16),
           const OrDivider(),
           const SizedBox(height: 20),
-          GoogleButton(label: 'Tiếp tục với Google', onPressed: _onGoogleLogin),
+          GoogleButton(
+            label: 'Tiếp tục với Google',
+            onPressed: controller.loginWithGoogle,
+          ),
           const SizedBox(height: 32),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,

@@ -1,5 +1,6 @@
 import 'meal_entry_model.dart';
 
+// Dữ liệu nguyên thủy (Khớp 100% với Database)
 class DailyRecordModel {
   final String userId;
   final DateTime recordDate;
@@ -50,7 +51,7 @@ class DailyRecordModel {
               .toDouble(),
       proteinGoal: json['protein_goal'],
       carbsGoal: json['carbs_goal'],
-      fatGoal: json['fat_goal'],  
+      fatGoal: json['fat_goal'],
       caloriesConsumed:
           (json['total_calories'] ?? json['calories_consumed'] ?? 0).toDouble(),
       caloriesBurned: (json['calories_burned'] ?? 0).toDouble(),
@@ -73,5 +74,19 @@ class DailyRecordModel {
       'total_fat': fat,
       'meals': meals.map((m) => m.toJson()).toList(),
     };
+  }
+}
+
+// Logic giao diện & Bù trừ dữ liệu
+extension DailyRecordExtension on DailyRecordModel? {
+  int get safeConsumed => this?.caloriesConsumed.toInt() ?? 0;
+  int get safeGoal => this?.caloriesGoal?.toInt() ?? 2000;
+  int get safeProtein => this?.protein.toInt() ?? 0;
+  int get safeCarbs => this?.carbs.toInt() ?? 0;
+  int get safeFat => this?.fat.toInt() ?? 0;
+
+  double get progressRatio {
+    if (safeGoal == 0) return 0.0;
+    return (safeConsumed / safeGoal).clamp(0.0, 1.0);
   }
 }

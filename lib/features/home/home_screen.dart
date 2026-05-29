@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nutriscan/features/home/home_controller/home_state.dart';
 import '../theme/app_responsive.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/responsive_wrapper.dart';
 
 import 'widgets/ai_tip_card.dart';
-import 'widgets/meal_group_list.dart';
+import '../widgets/meal_group_list.dart';
 import 'widgets/home_sliver_app_bar.dart';
 
-import '../../providers/today_record_provider.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/user_provider.dart';
-import '../../models/daily_record_model.dart';
+import 'home_controller/home_controller.dart';
 import '../../models/meal_entry_model.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -21,26 +19,14 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Lắng nghe dữ liệu ngày hôm nay (đã có offline fallback bên trong provider)
-    final todayAsync = ref.watch(todayRecordProvider);
-
-    // Lấy tên người dùng
-    final authState = ref.watch(authStateProvider);
-    final userProfile = ref.watch(userProfileProvider);
-    final userName = authState.value?.userMetadata?['name'] as String? ??
-        userProfile.valueOrNull?.name ??
-        'Người dùng';
+    final homeAsync = ref.watch(homeControllerProvider);
+    final controller = ref.read(homeControllerProvider.notifier);
 
     return Scaffold(
       // Bọc toàn bộ màn hình bằng RefreshIndicator
       body: RefreshIndicator(
         color: AppColors.primary,
-        onRefresh: () async {
-          // Invalidate để tải lại từ server (hoặc cache)
-          ref.invalidate(todayRecordProvider);
-          // Đợi provider hoàn thành
-          await ref.read(todayRecordProvider.future);
-        },
+        onRefresh: controller.refresh,
         // Dùng CustomScrollView thay cho Column tổng
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(
@@ -49,14 +35,14 @@ class HomeScreen extends ConsumerWidget {
           slivers: [
             // Header
             HomeSliverAppBar(
-              userName: userName,
-              record: todayAsync.valueOrNull,
+              userName: homeAsync.valueOrNull?.userName ?? '...',
+              record: homeAsync.valueOrNull?.record,
             ),
 
             SliverToBoxAdapter(
               child: ResponsiveWrapper(
                 useScroll: false,
-                child: todayAsync.when(
+                child: homeAsync.when(
                   loading: () => const SizedBox(
                     height: 300,
                     child: Center(
@@ -64,11 +50,8 @@ class HomeScreen extends ConsumerWidget {
                       color: AppColors.primary,
                     )),
                   ),
-                  error: (err, _) {
-                    print('=== TODAY ERROR: $err ===');
-                    return _buildErrorView(ref);
-                  },
-                  data: (record) => _buildDataView(context, record),
+                  error: (err, _) => _buildErrorView(onRetry: controller.refresh),
+                  data: (state) => _buildDataView(context, state),
                 ),
               ),
             ),
@@ -83,7 +66,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildErrorView(WidgetRef ref) {
+  Widget _buildErrorView({required VoidCallback onRetry}) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -96,7 +79,7 @@ class HomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           ElevatedButton(
-            onPressed: () => ref.invalidate(todayRecordProvider),
+            onPressed: onRetry,
             child: const Text('Thử lại'),
           ),
         ],
@@ -104,22 +87,17 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDataView(BuildContext context, DailyRecordModel? record) {
-    // Thay vì return text, tạo record rỗng để hiện UI đầy đủ
-    final consumed = record?.caloriesConsumed.toInt() ?? 0;
-    final goal = record?.caloriesGoal?.toInt() ?? 2000;
-    final meals = record?.meals ?? []; // list rỗng → EmptyMealState sẽ hiện
-
+  Widget _buildDataView(BuildContext context, HomeState state) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 6),
-        CalorieProgressBar(consumed: consumed, goal: goal),
+        CalorieProgressBar(consumed: state.consumed, goal: state.goal),
         const SizedBox(height: 14),
         if (context.isDesktop)
-          _buildDesktopLayout(meals)
+          _buildDesktopLayout(state.meals)
         else
-          _buildMobileLayout(meals),
+          _buildMobileLayout(state.meals),
         const SizedBox(height: 40),
       ],
     );

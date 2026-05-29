@@ -1,22 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_responsive.dart';
 import '../widgets/auth_widgets.dart';
 import '../theme/app_theme.dart';
 
-class ForgotPasswordScreen extends StatefulWidget {
+import 'auth_controller/auth_state.dart';
+import 'auth_controller/forgot_password_controller.dart';
+
+class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
 
   @override
-  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  ConsumerState<ForgotPasswordScreen> createState() =>
+      _ForgotPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   final _emailCtrl = TextEditingController();
-  bool _isLoading = false;
-  bool _emailSent = false;
-  String? _emailError;
 
   @override
   void dispose() {
@@ -24,44 +25,23 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     super.dispose();
   }
 
-  void _onSend() async {
-    setState(() => _emailError = null);
-    if (_emailCtrl.text.trim().isEmpty) {
-      setState(() => _emailError = 'Vui lòng nhập email');
-      return;
-    }
-    if (!_emailCtrl.text.contains('@')) {
-      setState(() => _emailError = 'Email không hợp lệ');
-      return;
-    }
-    setState(() => _isLoading = true);
-    try {
-      await Supabase.instance.client.auth.resetPasswordForEmail(
-        _emailCtrl.text.trim(),
-      );
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-        _emailSent = true;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-        _emailError = 'Không thể gửi email. Vui lòng thử lại.';
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final state = ref.watch(forgotPasswordControllerProvider);
+    final controller = ref.read(forgotPasswordControllerProvider.notifier);
+
     return Theme(
       data: ThemeData(brightness: Brightness.light),
       child: Scaffold(
         backgroundColor: AppColors.bgPage,
         resizeToAvoidBottomInset: true,
         body: SingleChildScrollView(
-          child: Column(children: [_buildHeader(context), _buildForm(context)]),
+          child: Column(
+            children: [
+              _buildHeader(context),
+              _buildForm(context, state, controller),
+            ],
+          ),
         ),
       ),
     );
@@ -120,7 +100,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     );
   }
 
-  Widget _buildForm(BuildContext context) {
+  Widget _buildForm(BuildContext context, ForgotPasswordState state,
+      ForgotPasswordController controller) {
     return Container(
       color: AppColors.bgPage,
       padding: EdgeInsets.fromLTRB(context.hPad, 22, context.hPad, 32),
@@ -164,14 +145,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             placeholder: 'minhkhoa@gmail.com',
             controller: _emailCtrl,
             keyboardType: TextInputType.emailAddress,
-            errorText: _emailError,
+            errorText: state.emailError,
           ),
 
           const SizedBox(height: 22),
           AuthButton(
             label: 'Gửi link đặt lại',
-            onPressed: _onSend,
-            isLoading: _isLoading,
+            onPressed: () => controller.sendResetEmail(_emailCtrl.text),
+            isLoading: state.isLoading,
           ),
 
           const SizedBox(height: 16),
@@ -190,7 +171,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           ),
 
           // Trạng thái đã gửi email
-          if (_emailSent) ...[
+          if (state.emailSent) ...[
             const SizedBox(height: 28),
             const Divider(color: Color(0xFFEEEEEE)),
             const SizedBox(height: 20),
@@ -263,7 +244,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   ),
                   const SizedBox(height: 12),
                   GestureDetector(
-                    onTap: _onSend,
+                    onTap: () => controller.sendResetEmail(_emailCtrl.text),
                     child: Text(
                       'Gửi lại email',
                       style: TextStyle(

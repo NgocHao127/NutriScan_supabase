@@ -4,10 +4,8 @@ import '../../theme/app_responsive.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common_widgets.dart';
 
-import '../../../providers/api_provider.dart';
-import '../../../providers/user_provider.dart';
-
-import '../../../models/daily_record_model.dart';
+import '../diary_controller/weekly_state.dart';
+import '../diary_controller/weekly_controller.dart';
 
 class WeeklyTabView extends ConsumerStatefulWidget {
   final List<DateTime> weekDates; // Nhận danh sách ngày từ DiaryScreen
@@ -19,39 +17,21 @@ class WeeklyTabView extends ConsumerStatefulWidget {
 }
 
 class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
-  late Future<List<DailyRecordModel?>> _weeklyDataFuture;
-
   @override
   void initState() {
     super.initState();
-    _weeklyDataFuture = _fetchWeeklyData();
-  }
-
-  Future<List<DailyRecordModel?>> _fetchWeeklyData() async {
-    final mealService = ref.read(mealServiceProvider);
-    final List<DailyRecordModel?> records = [];
-
-    for (final date in widget.weekDates) {
-      try {
-        final data = await mealService.getDailyRecord(
-          date: date.toIso8601String().substring(0, 10),
-        );
-        if (data.isNotEmpty) {
-          records.add(DailyRecordModel.fromJson(data));
-        } else {
-          records.add(null);
-        }
-      } catch (_) {
-        records.add(null);
-      }
-    }
-    return records;
+    // Init controller với weekDates sau frame đầu
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(weeklyControllerProvider.notifier).init(widget.weekDates);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final userProfile = ref.watch(userProfileProvider).valueOrNull;
-    final proteinGoal = userProfile?.proteinGoal ?? 70;
+    final state = ref.watch(weeklyControllerProvider);
+    if (state.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
     final days = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
     2000;
@@ -63,113 +43,46 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
             ? 160.0
             : 130.0;
 
-    return FutureBuilder<List<DailyRecordModel?>>(
-      future: _weeklyDataFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        // Tạo mảng 7 số 0 mặc định
-        List<int> cals = List.filled(7, 0);
-        int totalWeeklyCals = 0;
-        int activeDays = 0;
-        double totalWeeklyProtein = 0;
-
-        final goal = snapshot.data
-                ?.whereType<DailyRecordModel>()
-                .firstOrNull
-                ?.caloriesGoal
-                ?.toInt() ??
-            userProfile?.calorieGoal ??
-            2000;
-
-        if (snapshot.hasData) {
-          final records = snapshot.data!;
-
-          // Map dữ liệu từ DB vào đúng cột của ngày đó
-          for (var record in records) {
-            if (record == null) continue;
-
-            final date = record.recordDate;
-            final dayIndex = date.weekday - 1; // Thứ 2 = 0, Chủ nhật = 6
-
-            if (dayIndex >= 0 && dayIndex < 7) {
-              final consumed = record.caloriesConsumed.toInt();
-              cals[dayIndex] = consumed;
-
-              if (consumed > 0) {
-                totalWeeklyCals += consumed;
-                activeDays++;
-                totalWeeklyProtein += record.protein;
-              }
-            }
-          }
-        }
-
-        final avgCals =
-            activeDays > 0 ? (totalWeeklyCals / activeDays).round() : 0;
-        final avgProtein =
-            activeDays > 0 ? (totalWeeklyProtein / activeDays).round() : 0;
-        final daysOverGoal = cals.where((cal) => cal > goal).length;
-
-        return SingleChildScrollView(
-          padding: EdgeInsets.symmetric(horizontal: context.hPad, vertical: 12),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: context.maxContentWidth),
-              child: context.isDesktop
-                  ? _buildDesktopLayout(
-                      context,
-                      cals,
-                      days,
-                      goal,
-                      maxVal,
-                      chartH,
-                      avgCals,
-                      daysOverGoal,
-                      avgProtein,
-                      proteinGoal,
-                    )
-                  : _buildMobileLayout(
-                      context,
-                      cals,
-                      days,
-                      goal,
-                      maxVal,
-                      chartH,
-                      avgCals,
-                      daysOverGoal,
-                      avgProtein,
-                      proteinGoal,
-                    ),
-            ),
-          ),
-        );
-      },
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(horizontal: context.hPad, vertical: 12),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: context.maxContentWidth),
+          child: context.isDesktop
+              ? _buildDesktopLayout(
+                  context,
+                  state,
+                  days,
+                  maxVal,
+                  chartH,
+                )
+              : _buildMobileLayout(
+                  context,
+                  state,
+                  days,
+                  maxVal,
+                  chartH,
+                ),
+        ),
+      ),
     );
   }
 
   Widget _buildMobileLayout(
     BuildContext context,
-    List<int> cals,
+    WeeklyState state,
     List<String> days,
-    int goal,
     int maxVal,
     double chartH,
-    int avgCals,
-    int daysOverGoal,
-    int avgProtein,
-    int proteinGoal,
   ) {
     final metricCols = context.isTablet ? 3 : 2;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildChart(context, cals, days, goal, maxVal, chartH),
+        _buildChart(context, state, days, maxVal, chartH),
         const SizedBox(height: 4),
-        _buildGoalLabel(context, goal),
+        _buildGoalLabel(context, state.goal),
         const SizedBox(height: 12),
         GridView.count(
           crossAxisCount: metricCols,
@@ -178,8 +91,7 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
           crossAxisSpacing: 6,
           mainAxisSpacing: 6,
           childAspectRatio: context.isTablet ? 2.2 : 1.6,
-          children: _buildMetricCards(
-              avgCals, daysOverGoal, goal, avgProtein, proteinGoal),
+          children: _buildMetricCards(state),
         ),
         const SizedBox(height: 12),
         _buildAiComment(context),
@@ -190,26 +102,21 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
 
   Widget _buildDesktopLayout(
     BuildContext context,
-    List<int> cals,
+    WeeklyState state,
     List<String> days,
-    int goal,
     int maxVal,
     double chartH,
-    int avgCals,
-    int daysOverGoal,
-    int avgProtein,
-    int proteinGoal,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildChart(context, cals, days, goal, maxVal, chartH),
+        _buildChart(context, state, days, maxVal, chartH,),
         const SizedBox(height: 4),
-        _buildGoalLabel(context, goal),
+        _buildGoalLabel(context, state.goal),
         const SizedBox(height: 12),
         Row(
           children: _buildMetricCards(
-                  avgCals, daysOverGoal, goal, avgProtein, proteinGoal)
+                  state)
               .map((card) {
             return Expanded(
               child: Padding(
@@ -226,31 +133,25 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
     );
   }
 
-  List<Widget> _buildMetricCards(
-    int avgCals,
-    int daysOverGoal,
-    int goal,
-    int avgProtein,
-    int proteinGoal,
-  ) {
+  List<Widget> _buildMetricCards(WeeklyState state) {
     return [
       MetricCard(
-        value: '$avgCals',
+        value: '$state.avgCals',
         label: 'TB calo / ngày',
-        sub: avgCals > 0
-            ? '${avgCals - goal} so với mục tiêu'
+        sub: state.avgCals > 0
+            ? '${state.avgCals - state.goal} so với mục tiêu'
             : 'Chưa có dữ liệu',
       ),
       MetricCard(
-        value: '$daysOverGoal / 7',
+        value: '$state.daysOverGoal / 7',
         label: 'Ngày vượt mục tiêu',
         sub: 'Cố gắng giữ phong độ',
-        subColor: daysOverGoal > 0 ? AppColors.danger : AppColors.textSecondary,
+        subColor: state.daysOverGoal > 0 ? AppColors.danger : AppColors.textSecondary,
       ),
       MetricCard(
-        value: '${avgProtein}g',
+        value: '${state.avgProtein}g',
         label: 'Protein TB',
-        sub: 'mục tiêu ${proteinGoal}g',
+        sub: 'mục tiêu ${state.proteinGoal}g',
         subColor: AppColors.protein,
       ),
       const MetricCard(
@@ -263,9 +164,8 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
 
   Widget _buildChart(
     BuildContext context,
-    List<int> cals,
+    WeeklyState state,
     List<String> days,
-    int goal,
     int maxVal,
     double chartH,
   ) {
@@ -277,7 +177,7 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: List.generate(7, (i) {
-          final val = cals[i];
+          final val = state.cals[i];
           final barH = val > 0
               ? ((val / maxVal) * (chartH * 0.75)).clamp(8.0, chartH * 0.75)
               : 8.0;
@@ -285,7 +185,7 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
 
           final color = val == 0
               ? Colors.grey[200]!
-              : val > goal
+              : val > state.goal
                   ? AppColors.danger.withValues(alpha: 0.7)
                   : AppColors.primaryAccent;
 

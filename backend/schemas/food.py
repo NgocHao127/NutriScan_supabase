@@ -16,8 +16,8 @@ class FoodBase(BaseModel):
 class FoodResponse(FoodBase):
     id: Optional[int] = None
     id: int
-    source: str
-    status: str
+    source: Optional[str] = None
+    status: Optional[str] = None
     external_id: Optional[str] = None
     image_url: Optional[str] = None
     created_at: Optional[datetime] = None

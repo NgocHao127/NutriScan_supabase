@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nutriscan/providers/user_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
 
@@ -8,16 +9,15 @@ final supabaseClientProvider = Provider<SupabaseClient>(
 
 final authStateProvider = StreamProvider<User?>((ref) {
   return ref.watch(supabaseClientProvider).auth.onAuthStateChange.map((data) {
-    print(
-        '=== AUTH STREAM: ${data.event} user=${data.session?.user?.email} ===');
     return data.session?.user;
   });
 });
 
 class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
   final SupabaseClient _supabase;
+  final Ref _ref;
 
-  AuthNotifier(this._supabase) : super(const AsyncLoading()) {
+  AuthNotifier(this._supabase, this._ref) : super(const AsyncLoading()) {
     state = AsyncData(_supabase.auth.currentUser);
     _supabase.auth.onAuthStateChange.listen((data) {
       state = AsyncData(data.session?.user);
@@ -64,7 +64,6 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
       // Đợi request từ browser
       await for (final request in server) {
         final uri = request.requestedUri;
-        print('=== CALLBACK: $uri ===');
 
         // Trả về trang thành công cho browser
         request.response
@@ -91,11 +90,11 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
 
   Future<void> signOut() async {
     await _supabase.auth.signOut();
-    state = const AsyncData(null);
+    _ref.invalidate(userProfileProvider);
   }
 }
 
 final authNotifierProvider =
     StateNotifierProvider<AuthNotifier, AsyncValue<User?>>((ref) {
-  return AuthNotifier(ref.watch(supabaseClientProvider));
+  return AuthNotifier(ref.watch(supabaseClientProvider), ref);
 });

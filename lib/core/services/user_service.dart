@@ -7,13 +7,10 @@ class UserService {
 
   /// GET /users/me – lấy thông tin profile
   Future<Map<String, dynamic>> getProfile() async {
-    print('=== CALLING /users/me ===');
     try {
       final response = await _api.get('/users/me');
-      print('=== RESPONSE: ${response.data} ===');
       return _api.mapFromResponse(response.data) ?? {};
     } catch (e) {
-      print('=== getProfile ERROR: $e ===');
       rethrow;
     }
   }

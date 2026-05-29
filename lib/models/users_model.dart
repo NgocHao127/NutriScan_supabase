@@ -17,6 +17,9 @@ class UserModel {
   final double? bmi;
   final String? bmiCategory;
   final String? bodyShape;
+  final bool? notifyMeal;
+  final bool? notifyWeekly;
+  final bool? notifyAlert;
   String? get uid => id;
 
   UserModel({
@@ -38,6 +41,9 @@ class UserModel {
     this.bmi,
     this.bmiCategory,
     this.bodyShape,
+    this.notifyMeal,
+    this.notifyWeekly,
+    this.notifyAlert,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -64,6 +70,9 @@ class UserModel {
       bmi: (json['bmi'] as num?)?.toDouble(),
       bmiCategory: json['bmi_category'],
       bodyShape: json['body_shape'],
+      notifyMeal: json['notify_meal'],
+      notifyWeekly: json['notify_weekly'],
+      notifyAlert: json['notify_alert'],
     );
   }
 
@@ -83,6 +92,9 @@ class UserModel {
       if (carbsGoal != null) 'carbs_goal': carbsGoal,
       if (fatGoal != null) 'fat_goal': fatGoal,
       if (bodyShape != null) 'body_shape': bodyShape,
+      if (notifyMeal != null) 'notify_meal': notifyMeal,
+      if (notifyWeekly != null) 'notify_weekly': notifyWeekly,
+      if (notifyAlert != null) 'notify_alert': notifyAlert,
     };
   }
 }
