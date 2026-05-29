@@ -1,25 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../theme/app_responsive.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common_widgets.dart';
+import '../../../providers/user_provider.dart';
+import '../../../providers/today_record_provider.dart';
 
-class GoalTab extends StatefulWidget {
+class GoalTab extends ConsumerWidget {
   const GoalTab({super.key});
 
   @override
-  State<GoalTab> createState() => _GoalTabState();
-}
-
-class _GoalTabState extends State<GoalTab> with AutomaticKeepAliveClientMixin {
-  int selectedGoal = 1;
-
-  @override
-  bool get wantKeepAlive => true;
-
-  @override
-  Widget build(BuildContext context) {
-    super.build(context);
-
+  Widget build(BuildContext context, WidgetRef ref) {
     return SingleChildScrollView(
       padding: EdgeInsets.symmetric(horizontal: context.hPad, vertical: 14),
       child: Center(
@@ -34,36 +26,25 @@ class _GoalTabState extends State<GoalTab> with AutomaticKeepAliveClientMixin {
   }
 
   Widget _buildDesktopLayout(BuildContext context) {
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Cột trái: mục tiêu hiện tại
-        Expanded(
-          flex: 2,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SectionLabel(label: 'Mục tiêu hiện tại'),
-              const CurrentGoalCard(),
-            ],
-          ),
-        ),
-
-        const SizedBox(width: 32),
-        // Cột phải: đổi mục tiêu
-        Expanded(
-          flex: 3,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SectionLabel(label: 'Đổi mục tiêu'),
-              GoalGrid(
-                selectedGoal: selectedGoal,
-                onGoalSelected: (i) => setState(() => selectedGoal = i),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            SectionLabel(label: 'Mục tiêu hiện tại'),
+            IconButton(
+              icon: const Icon(
+                Icons.edit_outlined,
+                color: AppColors.primary,
+                size: 18,
               ),
-            ],
-          ),
+              onPressed: () => context.push('/edit-profile'),
+            ),
+          ],
         ),
+        const CurrentGoalCard(),
+        const SizedBox(height: 16),
       ],
     );
   }
@@ -72,27 +53,45 @@ class _GoalTabState extends State<GoalTab> with AutomaticKeepAliveClientMixin {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionLabel(label: 'Mục tiêu hiện tại'),
-        const CurrentGoalCard(),
-
-        const SizedBox(height: 14),
-        SectionLabel(label: 'Đổi mục tiêu'),
-        GoalGrid(
-          selectedGoal: selectedGoal,
-          onGoalSelected: (i) => setState(() => selectedGoal = i),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            SectionLabel(label: 'Mục tiêu hiện tại'),
+            IconButton(
+              icon: const Icon(
+                Icons.edit_outlined,
+                color: AppColors.primary,
+                size: 18,
+              ),
+              onPressed: () => context.push('/edit-profile'),
+            ),
+          ],
         ),
-
-        const SizedBox(height: 16),
+        const CurrentGoalCard(),
       ],
     );
   }
 }
 
-class CurrentGoalCard extends StatelessWidget {
+class CurrentGoalCard extends ConsumerWidget {
   const CurrentGoalCard({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(userProfileProvider).valueOrNull;
+    final todayRecord = ref.watch(todayRecordProvider).valueOrNull;
+
+    final calorieGoal = user?.calorieGoal ?? 2000;
+    final proteinGoal = (user?.proteinGoal ?? 150).toDouble();
+    final carbsGoal = (user?.carbsGoal ?? 250).toDouble();
+    final fatGoal = (user?.fatGoal ?? 65).toDouble();
+
+    // Dữ liệu thực hôm nay
+    final caloriesConsumed = todayRecord?.caloriesConsumed ?? 0;
+    final proteinConsumed = todayRecord?.protein ?? 0;
+    final carbConsumed = todayRecord?.carbs ?? 0;
+    final fatConsumed = todayRecord?.fat ?? 0;
+
     final iconSize = context.iconSize(32, tablet: 36, desktop: 40);
 
     return Container(
@@ -122,21 +121,20 @@ class CurrentGoalCard extends StatelessWidget {
                   color: AppColors.primary,
                 ),
               ),
-
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Duy trì cân nặng',
+                      user?.goal ?? 'Chưa đặt mục tiêu',
                       style: TextStyle(
                         fontSize: context.fs(13),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                     Text(
-                      'Hoạt động vừa phải · TDEE 2.100 kcal',
+                      '${user?.activityLevel ?? 'Chưa cập nhật'} · $calorieGoal kcal',
                       style: TextStyle(
                         fontSize: context.fs(11),
                         color: AppColors.textSecondary,
@@ -165,125 +163,75 @@ class CurrentGoalCard extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
                 child: MacroCard(
                   label: 'Calo / ngày',
-                  value: '1.800',
+                  value: '$calorieGoal',
                   color: AppColors.primaryMid,
-                  progress: 1240 / 1800,
+                  progress: calorieGoal > 0
+                      ? (caloriesConsumed / calorieGoal).clamp(0.0, 1.0)
+                      : 0,
                 ),
               ),
-
               const SizedBox(width: 6),
               Expanded(
                 child: MacroCard(
                   label: 'Protein',
-                  value: '70g',
+                  value: '${proteinGoal}g',
                   color: AppColors.protein,
-                  progress: 62 / 70,
+                  progress: (proteinConsumed / proteinGoal).clamp(0.0, 1.0),
                 ),
               ),
-
               const SizedBox(width: 6),
               Expanded(
                 child: MacroCard(
                   label: 'Carb',
-                  value: '220g',
+                  value: '${carbsGoal}g',
                   color: AppColors.carb,
-                  progress: 148 / 220,
+                  progress: (carbConsumed / carbsGoal).clamp(0.0, 1.0),
                 ),
               ),
-
               const SizedBox(width: 6),
               Expanded(
                 child: MacroCard(
                   label: 'Fat',
-                  value: '60g',
+                  value: '${fatGoal}g',
                   color: AppColors.fat,
-                  progress: 38 / 60,
+                  progress: (fatConsumed / fatGoal).clamp(0.0, 1.0),
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.primaryLight,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.auto_awesome_outlined,
+                    size: 12, color: AppColors.primary),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    'Calo dự kiến được tính tự động từ thông số cơ thể của bạn',
+                    style: TextStyle(
+                      fontSize: context.fs(10),
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
-    );
-  }
-}
-
-class GoalGrid extends StatelessWidget {
-  final int selectedGoal;
-  final Function(int) onGoalSelected;
-
-  const GoalGrid({
-    required this.selectedGoal,
-    required this.onGoalSelected,
-    super.key,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final goals = [
-      (Icons.trending_down_rounded, 'Giảm cân', '-0.5kg / tuần'),
-      (Icons.balance_rounded, 'Duy trì', 'Cân bằng calo'),
-      (Icons.fitness_center_rounded, 'Tăng cơ', '+200 kcal surplus'),
-      (Icons.favorite_border_rounded, 'Ăn lành mạnh', 'Cải thiện chất xơ'),
-    ];
-
-    if (context.isTablet) {
-      final cardWidth = (context.sw - context.hPad * 2 - 20) / 3;
-
-      return Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        children: goals.asMap().entries.map((e) {
-          final g = e.value;
-          final isSelected = e.key == selectedGoal;
-
-          return SizedBox(
-            width: cardWidth,
-            child: GoalCard(
-              icon: g.$1,
-              title: g.$2,
-              subtitle: g.$3,
-              isSelected: isSelected,
-              onTap: () => onGoalSelected(e.key),
-            ),
-          );
-        }).toList(),
-      );
-    }
-
-    final cols = context.isDesktop ? 4 : 2;
-    final ratio = context.isDesktop
-        ? 1.0
-        : context.isTablet
-        ? 1.0
-        : 1.3;
-
-    return GridView.count(
-      crossAxisCount: cols,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
-      childAspectRatio: ratio,
-      children: goals.asMap().entries.map((e) {
-        final g = e.value;
-        final isSelected = e.key == selectedGoal;
-
-        return GoalCard(
-          icon: g.$1,
-          title: g.$2,
-          subtitle: g.$3,
-          isSelected: isSelected,
-          onTap: () => onGoalSelected(e.key),
-        );
-      }).toList(),
     );
   }
 }

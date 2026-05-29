@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../theme/app_responsive.dart';
 import '../theme/app_theme.dart';
 
@@ -64,18 +65,18 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen>
       final data = await mealService.getDailyRecord(
         date: selectedDate.toIso8601String().substring(0, 10),
       );
-    if (data.isNotEmpty) {
-      final serverRecord = DailyRecordModel.fromJson(data);
-      _currentRecord = serverRecord;
-      _currentMeals = serverRecord.meals;
-    } else {
+      if (data.isNotEmpty) {
+        final serverRecord = DailyRecordModel.fromJson(data);
+        _currentRecord = serverRecord;
+        _currentMeals = serverRecord.meals;
+      } else {
+        _currentRecord = null;
+        _currentMeals = [];
+      }
+    } catch (_) {
       _currentRecord = null;
       _currentMeals = [];
     }
-  } catch (_) {
-    _currentRecord = null;
-    _currentMeals = [];
-  }
     if (mounted) setState(() => _isLoading = false);
   }
 
@@ -110,6 +111,11 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen>
             _buildMobileBody(context),
           ],
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => context.push('/add-meal'),
+        backgroundColor: AppColors.primary,
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }

@@ -5,6 +5,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/common_widgets.dart';
 
 import '../../../providers/api_provider.dart';
+import '../../../providers/user_provider.dart';
 
 import '../../../models/daily_record_model.dart';
 
@@ -49,8 +50,11 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
 
   @override
   Widget build(BuildContext context) {
+    final userProfile = ref.watch(userProfileProvider).valueOrNull;
+    final proteinGoal = userProfile?.proteinGoal ?? 70;
+
     final days = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-    final goal = 2000;
+    2000;
     final maxVal = 2500;
     // Chiều cao chart: cố định dp thay vì % sh — không bị khổng lồ trên desktop
     final chartH = context.isDesktop
@@ -71,6 +75,14 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
         int totalWeeklyCals = 0;
         int activeDays = 0;
         double totalWeeklyProtein = 0;
+
+        final goal = snapshot.data
+                ?.whereType<DailyRecordModel>()
+                .firstOrNull
+                ?.caloriesGoal
+                ?.toInt() ??
+            userProfile?.calorieGoal ??
+            2000;
 
         if (snapshot.hasData) {
           final records = snapshot.data!;
@@ -117,6 +129,7 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
                       avgCals,
                       daysOverGoal,
                       avgProtein,
+                      proteinGoal,
                     )
                   : _buildMobileLayout(
                       context,
@@ -128,6 +141,7 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
                       avgCals,
                       daysOverGoal,
                       avgProtein,
+                      proteinGoal,
                     ),
             ),
           ),
@@ -146,6 +160,7 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
     int avgCals,
     int daysOverGoal,
     int avgProtein,
+    int proteinGoal,
   ) {
     final metricCols = context.isTablet ? 3 : 2;
 
@@ -163,7 +178,8 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
           crossAxisSpacing: 6,
           mainAxisSpacing: 6,
           childAspectRatio: context.isTablet ? 2.2 : 1.6,
-          children: _buildMetricCards(avgCals, daysOverGoal, goal, avgProtein),
+          children: _buildMetricCards(
+              avgCals, daysOverGoal, goal, avgProtein, proteinGoal),
         ),
         const SizedBox(height: 12),
         _buildAiComment(context),
@@ -182,6 +198,7 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
     int avgCals,
     int daysOverGoal,
     int avgProtein,
+    int proteinGoal,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -191,7 +208,8 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
         _buildGoalLabel(context, goal),
         const SizedBox(height: 12),
         Row(
-          children: _buildMetricCards(avgCals, daysOverGoal, goal, avgProtein)
+          children: _buildMetricCards(
+                  avgCals, daysOverGoal, goal, avgProtein, proteinGoal)
               .map((card) {
             return Expanded(
               child: Padding(
@@ -209,7 +227,12 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
   }
 
   List<Widget> _buildMetricCards(
-      int avgCals, int daysOverGoal, int goal, int avgProtein) {
+    int avgCals,
+    int daysOverGoal,
+    int goal,
+    int avgProtein,
+    int proteinGoal,
+  ) {
     return [
       MetricCard(
         value: '$avgCals',
@@ -227,7 +250,7 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
       MetricCard(
         value: '${avgProtein}g',
         label: 'Protein TB',
-        sub: 'mục tiêu 70g',
+        sub: 'mục tiêu ${proteinGoal}g',
         subColor: AppColors.protein,
       ),
       const MetricCard(

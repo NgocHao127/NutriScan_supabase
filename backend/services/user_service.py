@@ -16,7 +16,16 @@ async def get_or_create_user(user_id: str, email: str = None, name: str = None):
     return create_res.data[0]
 
 async def update_user(user_id: str, data: dict):
-    print(f"=== UPDATE USER: uid={user_id}, data={data} ===")
-    res = supabase.table("profiles").update(data).eq("uid", user_id).execute()
+    # Chỉ giữ các field có trong bảng profiles
+    allowed_fields = {
+        'name', 'email', 'age', 'gender', 'height', 'weight',
+        'goal', 'activity_level', 'calorie_goal',
+        'protein_goal', 'carbs_goal', 'fat_goal',
+        'body_shape'
+    }
+    filtered = {k: v for k, v in data.items() if k in allowed_fields}
+    
+    print(f"=== UPDATE USER: uid={user_id}, data={filtered} ===")
+    res = supabase.table("profiles").update(filtered).eq("uid", user_id).execute()
     print(f"=== UPDATE RESULT: {res.data} ===")
     return res.data[0]

@@ -84,6 +84,18 @@ async def get_daily_record(user_id: str, date_str: str = None):
         
     start_date = f"{date_str}T00:00:00+00:00"
     end_date = f"{date_str}T23:59:59+00:00"
+
+    # Lấy calorie_goal từ profiles
+    profile = supabase.table("profiles")\
+        .select("calorie_goal, protein_goal, carbs_goal, fat_goal")\
+        .eq("uid", user_id)\
+        .single()\
+        .execute()
+
+    calorie_goal = profile.data.get("calorie_goal", 2000) if profile.data else 2000
+    protein_goal = profile.data.get("protein_goal", 0) if profile.data else 0
+    carbs_goal = profile.data.get("carbs_goal", 0) if profile.data else 0
+    fat_goal = profile.data.get("fat_goal", 0) if profile.data else 0
     
     # Join meal_items vào meal_entries
     response = supabase.table("meal_entries").select("*, meal_items(*)")\
@@ -105,5 +117,9 @@ async def get_daily_record(user_id: str, date_str: str = None):
         "total_protein": total_protein,
         "total_carbs": total_carbs,
         "total_fat": total_fat,
+        "calories_goal": calorie_goal,
+        "protein_goal": protein_goal,
+        "carbs_goal": carbs_goal,
+        "fat_goal": fat_goal,  
         "meals": entries
     }

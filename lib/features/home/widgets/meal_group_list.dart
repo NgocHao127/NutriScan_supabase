@@ -109,7 +109,7 @@ class MealGroup extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         if (mealItems.isEmpty)
-          AddMealButton(type: type)
+          const SizedBox.shrink()
         else if (useGrid)
           _buildGrid(context)
         else
@@ -254,44 +254,6 @@ class MealCard extends StatelessWidget {
   }
 }
 
-class AddMealButton extends StatelessWidget {
-  final String type;
-
-  const AddMealButton({super.key, required this.type});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => context.push('/add-meal', extra: type),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(context.cardRadius),
-          border: Border.all(
-            color: AppColors.primary.withValues(alpha: 0.3),
-            width: 0.5,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.add, size: context.fs(14), color: AppColors.primary),
-            const SizedBox(width: 4),
-            Text(
-              'Thêm $type',
-              style: TextStyle(
-                fontSize: context.fs(12),
-                color: AppColors.primary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class EmptyMealState extends StatelessWidget {
   final String? mealType;
 
@@ -346,24 +308,6 @@ class EmptyMealState extends StatelessWidget {
               fontSize: context.fs(12),
               color: AppColors.primaryDark,
               height: 1.5,
-            ),
-          ),
-
-          const SizedBox(height: 24),
-          // Nút CTA (Call-to-Action)
-          ElevatedButton.icon(
-            onPressed: () => context.push('/add-meal', extra: mealType),
-            icon: const Icon(Icons.add_circle_outline, color: Colors.white),
-            label: const Text(
-              'Thêm bữa ăn ngay',
-              style: TextStyle(color: Colors.white),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryMid,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
             ),
           ),
         ],

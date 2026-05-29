@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import '../../theme/app_responsive.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common_widgets.dart';
@@ -111,10 +110,9 @@ class DailyTabView extends StatelessWidget {
     final carbs = record?.carbs ?? 0.0;
     final fat = record?.fat ?? 0.0;
 
-    // Mục tiêu mẫu (có thể lấy từ user profile sau)
-    const proteinGoal = 150.0;
-    const carbsGoal = 250.0;
-    const fatGoal = 65.0;
+    final proteinGoal = (record?.proteinGoal ?? 150).toDouble();
+    final carbsGoal = (record?.carbsGoal ?? 250).toDouble();
+    final fatGoal = (record?.fatGoal ?? 65).toDouble();
 
     return Row(
       children: [
@@ -249,36 +247,6 @@ class MealsGroups extends StatelessWidget {
             ],
           );
         }),
-
-        // 1 nút thêm bữa ăn duy nhất
-        const SizedBox(height: 4),
-        GestureDetector(
-          onTap: () => context.push('/add-meal'),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(context.cardRadius),
-              border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.3),
-                width: 0.5,
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.add, size: context.fs(13), color: AppColors.primary),
-                const SizedBox(width: 4),
-                Text('Thêm bữa ăn',
-                    style: TextStyle(
-                      fontSize: context.fs(12),
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w500,
-                    )),
-              ],
-            ),
-          ),
-        ),
       ],
     );
   }

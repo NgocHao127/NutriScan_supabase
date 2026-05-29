@@ -8,9 +8,15 @@ class UserModel {
   final String? goal;
   final String? activityLevel;
   final int? calorieGoal;
+  final int? proteinGoal;
+  final int? carbsGoal;
+  final int? fatGoal;
   final String? email;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final double? bmi;
+  final String? bmiCategory;
+  final String? bodyShape;
   String? get uid => id;
 
   UserModel({
@@ -24,8 +30,14 @@ class UserModel {
     this.activityLevel,
     this.gender,
     this.calorieGoal,
+    this.proteinGoal,
+    this.carbsGoal,
+    this.fatGoal,
     this.createdAt,
     this.updatedAt,
+    this.bmi,
+    this.bmiCategory,
+    this.bodyShape,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -40,12 +52,18 @@ class UserModel {
       goal: json['goal'],
       activityLevel: json['activity_level'],
       calorieGoal: json['calorie_goal'],
+      proteinGoal: json['proteinGoal'],
+      carbsGoal: json['carbsGoal'],
+      fatGoal: json['fatGoal'],
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'])
           : null,
       updatedAt: json['updated_at'] != null
           ? DateTime.tryParse(json['updated_at'])
           : null,
+      bmi: (json['bmi'] as num?)?.toDouble(),
+      bmiCategory: json['bmi_category'],
+      bodyShape: json['body_shape'],
     );
   }
 
@@ -61,6 +79,10 @@ class UserModel {
       if (goal != null) 'goal': goal,
       if (activityLevel != null) 'activity_level': activityLevel,
       if (calorieGoal != null) 'calorie_goal': calorieGoal,
+      if (proteinGoal != null) 'protein_goal': proteinGoal,
+      if (carbsGoal != null) 'carbs_goal': carbsGoal,
+      if (fatGoal != null) 'fat_goal': fatGoal,
+      if (bodyShape != null) 'body_shape': bodyShape,
     };
   }
 }

@@ -16,14 +16,6 @@ class ProfileAppBar extends ConsumerWidget {
     return '${words[0][0]}${words.last[0]}'.toUpperCase();
   }
 
-  // Hàm tính BMI an toàn
-  String _calculateBMI(num? weight, num? height) {
-    if (weight == null || height == null || height <= 0) return '-';
-    final hInMeters = height / 100;
-    final bmi = weight / (hInMeters * hInMeters);
-    return bmi.toStringAsFixed(1);
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final avatarSize = context.iconSize(52, tablet: 58, desktop: 64);
@@ -56,10 +48,9 @@ class ProfileAppBar extends ConsumerWidget {
                   '=== USER name: ${user?.name}, email: ${user?.email}, uid: ${user?.id} ===');
               final name = user?.name ?? 'Người dùng';
               final age = user?.age ?? 0;
-              final weight = user?.weight;
-              final height = user?.height;
               final initials = _getInitials(name);
-              final bmiStr = _calculateBMI(weight, height);
+              final bmiStr =
+                  user?.bmi != null ? user!.bmi!.toStringAsFixed(1) : '-';
 
               return Center(
                 child: ConstrainedBox(
@@ -160,12 +151,12 @@ class ProfileAppBar extends ConsumerWidget {
                                 ),
                                 _buildInfoItem(
                                   context,
-                                  weight == null ? '-' : '${weight}kg',
+                                  user?.weight == null ? '-' : '${user!.weight}kg',
                                   'Cân nặng',
                                 ),
                                 _buildInfoItem(
                                   context,
-                                  height == null ? '-' : '${height}cm',
+                                  user?.height == null ? '-' : '${user!.height}cm',
                                   'Chiều cao',
                                 ),
                                 _buildInfoItem(context, bmiStr, 'BMI'),

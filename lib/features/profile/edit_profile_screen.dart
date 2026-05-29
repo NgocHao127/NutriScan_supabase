@@ -24,7 +24,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _heightCtrl = TextEditingController();
   final _weightCtrl = TextEditingController();
   final _ageCtrl = TextEditingController();
-  final _calorieCtrl = TextEditingController();
 
   bool _isLoading = true;
   bool _isSaving = false;
@@ -51,40 +50,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     ('Sức khỏe', Icons.favorite_border_rounded, 'Tổng thể'),
   ];
 
-  // Tính TDEE theo công thức Mifflin-St Jeor
-  int _calculateTDEE() {
-    final weight = double.tryParse(_weightCtrl.text) ?? 0;
-    final height = double.tryParse(_heightCtrl.text) ?? 0;
-    final age = int.tryParse(_ageCtrl.text) ?? 0;
-    if (weight == 0 || height == 0 || age == 0) return 2000;
-
-    // BMR
-    double bmr;
-    if (_selectedGender == 'Nam') {
-      bmr = 10 * weight + 6.25 * height - 5 * age + 5;
-    } else {
-      bmr = 10 * weight + 6.25 * height - 5 * age - 161;
-    }
-
-    // Activity multiplier
-    final multipliers = {
-      'Ít vận động (văn phòng)': 1.2,
-      'Vận động nhẹ (1-3 ngày/tuần)': 1.375,
-      'Vận động trung bình (3-5 ngày/tuần)': 1.55,
-      'Vận động nhiều (6-7 ngày/tuần)': 1.725,
-      'Vận động rất nhiều (công việc nặng hoặc tập luyện 2 lần/ngày)': 1.9,
-    };
-    final multiplier = multipliers[_selectedActivity] ?? 1.2;
-    double tdee = bmr * multiplier;
-
-    // Điều chỉnh theo mục tiêu
-    if (_selectedGoal == 'Giảm cân') tdee -= 500;
-    if (_selectedGoal == 'Tăng cơ') tdee += 300;
-
-    return tdee.round();
-  }
-
   String? _nameError;
+  String? _selectedBodyShape;
 
   @override
   void initState() {
@@ -100,7 +67,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _heightCtrl.dispose();
     _weightCtrl.dispose();
     _ageCtrl.dispose();
-    _calorieCtrl.dispose();
     super.dispose();
   }
 
@@ -125,10 +91,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         _heightCtrl.text = user.height?.toString() ?? '';
         _weightCtrl.text = user.weight?.toString() ?? '';
         _ageCtrl.text = user.age?.toString() ?? '';
-        _calorieCtrl.text = user.calorieGoal?.toString() ?? '';
         _selectedGender = user.gender;
         _selectedGoal = user.goal;
         _selectedActivity = user.activityLevel;
+        _selectedBodyShape = user.bodyShape;
       }
     } catch (e) {
       print('Lỗi khi tải thông tin hồ sơ: $e');
@@ -192,8 +158,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         'gender': _selectedGender,
         'goal': _selectedGoal,
         'activity_level': _selectedActivity,
-        'calorie_goal': int.tryParse(_calorieCtrl.text) ??
-            2000, // Mặc định nếu không nhập sẽ là 2000 calo
+        'body_shape': _selectedBodyShape,
       };
 
       // Gọi API cập nhật profile
@@ -322,50 +287,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                                 setState(() => _selectedActivity = v),
                           ),
                           const SizedBox(height: 14),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Expanded(
-                                child: AuthInput(
-                                  label: 'Mục tiêu calo mỗi ngày (kcal)',
-                                  placeholder: '2000',
-                                  controller: _calorieCtrl,
-                                  keyboardType: TextInputType.number,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 2),
-                                child: TextButton(
-                                  onPressed: () {
-                                    final tdee = _calculateTDEE();
-                                    setState(() =>
-                                        _calorieCtrl.text = tdee.toString());
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Gợi ý: $tdee kcal/ngày'),
-                                        backgroundColor: AppColors.primaryMid,
-                                      ),
-                                    );
-                                  },
-                                  style: TextButton.styleFrom(
-                                    backgroundColor: AppColors.primaryLight,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 13),
-                                  ),
-                                  child: Text('Tính tự động',
-                                      style: TextStyle(
-                                        color: AppColors.primary,
-                                        fontSize: context.fs(11),
-                                        fontWeight: FontWeight.w500,
-                                      )),
-                                ),
-                              ),
-                            ],
-                          ),
+                          const _SectionLabel('Vóc dáng'),
+                          _buildBodyShapeGrid(context),
                           const SizedBox(height: 28),
                           AuthButton(
                             label: 'Lưu thay đổi',
@@ -505,6 +428,37 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           subtitle: sub,
           isSelected: isSelected,
           onTap: () => setState(() => _selectedGoal = label),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildBodyShapeGrid(BuildContext context) {
+    final shapes = [
+      ('Thon gọn', Icons.accessibility_new_rounded, 'Ít mỡ'),
+      ('Săn chắc', Icons.fitness_center_rounded, 'Cân đối'),
+      ('Cơ bắp to', Icons.sports_gymnastics, 'Nhiều cơ'),
+      ('Bình thường', Icons.person_outline_rounded, 'Trung bình'),
+      ('Thừa cân', Icons.monitor_weight_outlined, 'Mỡ nhiều hơn TB'),
+      ('Béo phì', Icons.health_and_safety_outlined, 'Mỡ cao'),
+    ];
+
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 10,
+      mainAxisSpacing: 10,
+      childAspectRatio: context.isDesktop ? 1.0 : 1.3,
+      children: shapes.map((s) {
+        final (label, icon, sub) = s;
+        final isSelected = _selectedBodyShape == label;
+        return GoalCard(
+          icon: icon,
+          title: label,
+          subtitle: sub,
+          isSelected: isSelected,
+          onTap: () => setState(() => _selectedBodyShape = label),
         );
       }).toList(),
     );

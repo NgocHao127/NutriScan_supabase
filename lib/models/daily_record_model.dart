@@ -4,6 +4,9 @@ class DailyRecordModel {
   final String userId;
   final DateTime recordDate;
   final double? caloriesGoal;
+  final int? proteinGoal;
+  final int? carbsGoal;
+  final int? fatGoal;
   final double caloriesConsumed;
   final double caloriesBurned;
   final double protein;
@@ -15,6 +18,9 @@ class DailyRecordModel {
     required this.userId,
     required this.recordDate,
     this.caloriesGoal,
+    this.proteinGoal,
+    this.carbsGoal,
+    this.fatGoal,
     this.caloriesConsumed = 0,
     this.caloriesBurned = 0,
     this.protein = 0,
@@ -40,7 +46,11 @@ class DailyRecordModel {
           json['date']?.toString() ??
           DateTime.now().toIso8601String().substring(0, 10)),
       caloriesGoal:
-          (json['daily_calories_goal'] ?? json['calories_goal'])?.toDouble(),
+          (json['calories_goal'] ?? json['daily_calories_goal'] ?? 2000)
+              .toDouble(),
+      proteinGoal: json['protein_goal'],
+      carbsGoal: json['carbs_goal'],
+      fatGoal: json['fat_goal'],  
       caloriesConsumed:
           (json['total_calories'] ?? json['calories_consumed'] ?? 0).toDouble(),
       caloriesBurned: (json['calories_burned'] ?? 0).toDouble(),
