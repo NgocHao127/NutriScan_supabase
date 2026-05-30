@@ -7,8 +7,9 @@ import '../widgets/auth_widgets.dart';
 import '../widgets/common_widgets.dart';
 
 import '../../providers/user_provider.dart';
-import '../../providers/api_provider.dart';
-import '../../models/users_model.dart';
+
+import 'profile_controller/edit_profile_controller.dart';
+import 'profile_controller/edit_profile_state.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -24,14 +25,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _heightCtrl = TextEditingController();
   final _weightCtrl = TextEditingController();
   final _ageCtrl = TextEditingController();
-
-  bool _isLoading = true;
-  bool _isSaving = false;
-
-  // Không gán cứng mặc định để hiển thị chữ mờ "Chọn..." khi tài khoản chưa có dữ liệu
-  String? _selectedGender;
-  String? _selectedGoal;
-  String? _selectedActivity;
 
   // Danh sách dữ liệu tĩnh
   final _genders = ['Nam', 'Nữ', 'Khác'];
@@ -50,14 +43,16 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     ('Sức khỏe', Icons.favorite_border_rounded, 'Tổng thể'),
   ];
 
-  String? _nameError;
-  String? _selectedBodyShape;
+  final _shapes = [
+    ('Thon gọn', Icons.accessibility_new_rounded, 'Ít mỡ'),
+    ('Săn chắc', Icons.fitness_center_rounded, 'Cân đối'),
+    ('Cơ bắp to', Icons.sports_gymnastics, 'Nhiều cơ'),
+    ('Bình thường', Icons.person_outline_rounded, 'Trung bình'),
+    ('Thừa cân', Icons.monitor_weight_outlined, 'Mỡ nhiều hơn TB'),
+    ('Béo phì', Icons.health_and_safety_outlined, 'Mỡ cao'),
+  ];
 
-  @override
-  void initState() {
-    super.initState();
-    _loadProfile();
-  }
+  bool _controllersLoaded = false;
 
   @override
   void dispose() {
@@ -70,121 +65,17 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     super.dispose();
   }
 
-  // Tải dữ liệu từ supabase
-  Future<void> _loadProfile() async {
-    setState(() => _isLoading = true);
-    try {
-      // Lấy profile từ provider (đã cache hoặc gọi API)
-      final userAsync = ref.read(userProfileProvider);
-      // Đợi provider load xong nếu đang loading
-      UserModel? user;
-      if (userAsync is AsyncData) {
-        user = userAsync.value;
-      } else {
-        // Nếu provider chưa sẵn sàng, đợi future
-        user = await ref.read(userProfileProvider.future);
-      }
-
-      if (user != null) {
-        _emailCtrl.text = user.email ?? '';
-        _nameCtrl.text = user.name ?? '';
-        _heightCtrl.text = user.height?.toString() ?? '';
-        _weightCtrl.text = user.weight?.toString() ?? '';
-        _ageCtrl.text = user.age?.toString() ?? '';
-        _selectedGender = user.gender;
-        _selectedGoal = user.goal;
-        _selectedActivity = user.activityLevel;
-        _selectedBodyShape = user.bodyShape;
-      }
-    } catch (e) {
-      print('Lỗi khi tải thông tin hồ sơ: $e');
-    }
-    if (mounted) setState(() => _isLoading = false);
-  }
-
-  // Kiểm tra dữ liệu trước khi lưu
-  bool _validateData() {
-    setState(() => _nameError = null); // Reset lỗi trước khi kiểm tra
-
-    // Kiểm tra Tên (Báo lỗi ngay dưới ô nhập)
-    if (_nameCtrl.text.trim().isEmpty) {
-      setState(() => _nameError = 'Vui lòng nhập họ tên');
-      return false;
-    }
-
-    // Kiểm tra các chỉ số cơ thể bắt buộc (Tuổi, Chiều cao, Cân nặng)
-    if (_ageCtrl.text.trim().isEmpty ||
-        _heightCtrl.text.trim().isEmpty ||
-        _weightCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng nhập đầy đủ tuổi, chiều cao và cân nặng'),
-          backgroundColor: AppColors.danger,
-        ),
-      );
-      return false;
-    }
-
-    // Kiểm tra các Dropdown đã được chọn chưa (khác null)
-    if (_selectedGender == null ||
-        _selectedGoal == null ||
-        _selectedActivity == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Vui lòng chọn giới tính, mục tiêu và mức độ hoạt động',
-          ),
-          backgroundColor: AppColors.danger,
-        ),
-      );
-      return false;
-    }
-    // Nếu vượt qua hết các bài kiểm tra trên thì mới cho phép Lưu
-    return true;
-  }
-
-  // Lưu dữ liệu
-  Future<void> _onSave() async {
-    if (!_validateData()) return; // Nếu dữ liệu không hợp lệ, không tiếp tục
-    setState(() => _isSaving = true);
-
-    try {
-      final userService = ref.read(userServiceProvider);
-      final updatedData = {
-        'name': _nameCtrl.text.trim(),
-        'age': int.tryParse(_ageCtrl.text) ?? 0,
-        'height': double.tryParse(_heightCtrl.text) ?? 0.0,
-        'weight': double.tryParse(_weightCtrl.text) ?? 0.0,
-        'gender': _selectedGender,
-        'goal': _selectedGoal,
-        'activity_level': _selectedActivity,
-        'body_shape': _selectedBodyShape,
-      };
-
-      // Gọi API cập nhật profile
-      await userService.updateProfile(updatedData);
-
-      // Sau khi update, invalidate userProfileProvider để load lại
-      ref.invalidate(userProfileProvider);
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cập nhật hồ sơ thành công!'),
-          backgroundColor: AppColors.primaryMid,
-        ),
-      );
-      context.pop(); // Quay lại màn hình trước
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Lỗi kết nối. Không thể lưu!'),
-          backgroundColor: AppColors.danger,
-        ),
-      );
-    }
-    if (mounted) setState(() => _isSaving = false);
+  // Điền controllers khi profile load xong — chỉ 1 lần
+  void _fillControllers(EditProfileState state, WidgetRef ref) {
+    if (_controllersLoaded || state.isLoading) return;
+    _controllersLoaded = true;
+    final user = ref.read(userProfileProvider).valueOrNull;
+    if (user == null) return;
+    _nameCtrl.text = user.name ?? '';
+    _emailCtrl.text = user.email ?? '';
+    _heightCtrl.text = user.height?.toString() ?? '';
+    _weightCtrl.text = user.weight?.toString() ?? '';
+    _ageCtrl.text = user.age?.toString() ?? '';
   }
 
   String get _initials {
@@ -196,17 +87,52 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final state = ref.watch(editProfileControllerProvider);
+    final controller = ref.read(editProfileControllerProvider.notifier);
+
+    // Điền controllers 1 lần khi load xong
+    _fillControllers(state, ref);
+
+    // Lắng nghe kết quả save
+    ref.listen(editProfileControllerProvider, (_, next) {
+      if (next.isSaved) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cập nhật hồ sơ thành công!'),
+            backgroundColor: AppColors.primaryMid,
+          ),
+        );
+        context.pop();
+      } else if (next.status == EditProfileStatus.error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.errorMessage ?? 'Lỗi không xác định'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      } else if (next.errorMessage != null &&
+          next.status == EditProfileStatus.idle) {
+        // Validation error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.errorMessage!),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    });
+
     return Theme(
       data: ThemeData(brightness: Brightness.light),
       child: Scaffold(
         backgroundColor: AppColors.bgPage,
-        body: _isLoading
+        body: state.isLoading
             ? const Center(
                 child: CircularProgressIndicator(color: AppColors.primary),
               )
             : Column(
                 children: [
-                  _buildHeader(context),
+                  _buildHeader(context, state, controller),
                   Expanded(
                     child: SingleChildScrollView(
                       padding: EdgeInsets.fromLTRB(
@@ -225,7 +151,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             label: 'Họ và tên',
                             placeholder: 'Nguyễn Minh Khoa',
                             controller: _nameCtrl,
-                            errorText: _nameError,
+                            errorText: state.nameError,
                           ),
                           const SizedBox(height: 14),
                           Row(
@@ -242,11 +168,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                               Expanded(
                                 child: _DropdownField(
                                   label: 'Giới tính',
-                                  value: _selectedGender,
+                                  value: state.selectedGender,
                                   hint: 'Chọn giới tính',
                                   items: _genders,
-                                  onChanged: (v) =>
-                                      setState(() => _selectedGender = v),
+                                  onChanged: controller.selectGender,
                                 ),
                               ),
                             ],
@@ -276,24 +201,18 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           ),
                           const _SectionDivider(),
                           const _SectionLabel('Mục tiêu'),
-                          _buildGoalGrid(context),
+                          _buildGoalGrid(context, state, controller),
+                          const _SectionLabel('Vóc dáng hiện tại'),
+                          _buildBodyShapeGrid(context, state, controller),
+                          const _SectionDivider(),
                           const SizedBox(height: 14),
+                          const _SectionLabel('Mức độ hoạt động'),
                           _DropdownField(
                             label: 'Mức độ vận động',
-                            value: _selectedActivity,
+                            value: state.selectedActivity,
                             hint: 'Chọn mức độ vận động',
                             items: _activities,
-                            onChanged: (v) =>
-                                setState(() => _selectedActivity = v),
-                          ),
-                          const SizedBox(height: 14),
-                          const _SectionLabel('Vóc dáng'),
-                          _buildBodyShapeGrid(context),
-                          const SizedBox(height: 28),
-                          AuthButton(
-                            label: 'Lưu thay đổi',
-                            onPressed: _onSave,
-                            isLoading: _isSaving,
+                            onChanged: controller.selectActivity,
                           ),
                         ],
                       ),
@@ -305,7 +224,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, EditProfileState state,
+      EditProfileController controller) {
     final topPad = MediaQuery.of(context).padding.top;
     final btnSz = context.sw * 0.082;
 
@@ -334,27 +254,64 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           ),
 
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Chỉnh sửa hồ sơ',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: context.fs(17),
-                  fontWeight: FontWeight.w500,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Chỉnh sửa hồ sơ',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: context.fs(17),
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Cập nhật thông tin cá nhân',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: context.fs(11),
+                const SizedBox(height: 4),
+                Text(
+                  'Cập nhật thông tin cá nhân',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: context.fs(11),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
+
+          GestureDetector(
+            onTap: state.isSaving
+                ? null
+                : () => controller.save(
+                      name: _nameCtrl.text,
+                      age: _ageCtrl.text,
+                      height: _heightCtrl.text,
+                      weight: _weightCtrl.text,
+                    ),
+            child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: state.isSaving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        'Lưu',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: context.fs(13),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      )),
+          )
         ],
       ),
     );
@@ -405,12 +362,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     );
   }
 
-  Widget _buildGoalGrid(BuildContext context) {
-    final ratio = context.isDesktop
-        ? 1.0
-        : context.isTablet
-            ? 1.0
-            : 1.3;
+  Widget _buildGoalGrid(BuildContext context, EditProfileState state,
+      EditProfileController controller) {
+    final ratio = context.isDesktop || context.isTablet ? 1.0 : 1.3;
 
     return GridView.count(
       crossAxisCount: 2,
@@ -421,28 +375,19 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       childAspectRatio: ratio,
       children: _goals.map((g) {
         final (label, icon, sub) = g;
-        final isSelected = _selectedGoal == label;
         return GoalCard(
           icon: icon,
           title: label,
           subtitle: sub,
-          isSelected: isSelected,
-          onTap: () => setState(() => _selectedGoal = label),
+          isSelected: state.selectedGoal == label,
+          onTap: () => controller.selectGoal(label),
         );
       }).toList(),
     );
   }
 
-  Widget _buildBodyShapeGrid(BuildContext context) {
-    final shapes = [
-      ('Thon gọn', Icons.accessibility_new_rounded, 'Ít mỡ'),
-      ('Săn chắc', Icons.fitness_center_rounded, 'Cân đối'),
-      ('Cơ bắp to', Icons.sports_gymnastics, 'Nhiều cơ'),
-      ('Bình thường', Icons.person_outline_rounded, 'Trung bình'),
-      ('Thừa cân', Icons.monitor_weight_outlined, 'Mỡ nhiều hơn TB'),
-      ('Béo phì', Icons.health_and_safety_outlined, 'Mỡ cao'),
-    ];
-
+  Widget _buildBodyShapeGrid(BuildContext context, EditProfileState state,
+      EditProfileController controller) {
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -450,15 +395,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       crossAxisSpacing: 10,
       mainAxisSpacing: 10,
       childAspectRatio: context.isDesktop ? 1.0 : 1.3,
-      children: shapes.map((s) {
+      children: _shapes.map((s) {
         final (label, icon, sub) = s;
-        final isSelected = _selectedBodyShape == label;
         return GoalCard(
           icon: icon,
           title: label,
           subtitle: sub,
-          isSelected: isSelected,
-          onTap: () => setState(() => _selectedBodyShape = label),
+          isSelected: state.selectedBodyShape == label,
+          onTap: () => controller.selectBodyShape(label),
         );
       }).toList(),
     );

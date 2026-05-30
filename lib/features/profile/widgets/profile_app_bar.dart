@@ -16,6 +16,24 @@ class ProfileAppBar extends ConsumerWidget {
     return '${words[0][0]}${words.last[0]}'.toUpperCase();
   }
 
+  String _formatJoinDate(DateTime date) {
+    const months = [
+      'tháng 1',
+      'tháng 2',
+      'tháng 3',
+      'tháng 4',
+      'tháng 5',
+      'tháng 6',
+      'tháng 7',
+      'tháng 8',
+      'tháng 9',
+      'tháng 10',
+      'tháng 11',
+      'tháng 12',
+    ];
+    return '${months[date.month - 1]}, ${date.year}';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final avatarSize = context.iconSize(52, tablet: 58, desktop: 64);
@@ -98,7 +116,9 @@ class ProfileAppBar extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  'Thành viên từ tháng 4, 2026',
+                                  user?.createdAt != null
+                                      ? 'Thành viên từ ${_formatJoinDate(user!.createdAt!)}'
+                                      : 'Thành viên NutriScan',
                                   style: TextStyle(
                                     fontSize: context.fs(11),
                                     color: AppColors.onPrimary,
@@ -149,12 +169,16 @@ class ProfileAppBar extends ConsumerWidget {
                                 ),
                                 _buildInfoItem(
                                   context,
-                                  user?.weight == null ? '-' : '${user!.weight}kg',
+                                  user?.weight == null
+                                      ? '-'
+                                      : '${user!.weight}kg',
                                   'Cân nặng',
                                 ),
                                 _buildInfoItem(
                                   context,
-                                  user?.height == null ? '-' : '${user!.height}cm',
+                                  user?.height == null
+                                      ? '-'
+                                      : '${user!.height}cm',
                                   'Chiều cao',
                                 ),
                                 _buildInfoItem(context, bmiStr, 'BMI'),

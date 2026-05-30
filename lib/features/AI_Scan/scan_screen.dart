@@ -10,95 +10,55 @@ import 'widgets/result_view.dart';
 import '../../providers/api_provider.dart';
 import '../../models/meal_item_model.dart';
 
-enum ScanState { scanning, loading, result }
+import 'scan_controller/scan_controller.dart';
+import 'scan_controller/scan_state.dart';
 
-class ScanScreen extends ConsumerStatefulWidget {
+class ScanScreen extends ConsumerWidget {
   const ScanScreen({super.key});
 
   @override
-  ConsumerState<ScanScreen> createState() => _ScanScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(scanControllerProvider);
+    final controller = ref.read(scanControllerProvider.notifier);
 
-class _ScanScreenState extends ConsumerState<ScanScreen> {
-  ScanState _state = ScanState.scanning;
-  List<MealItemModel> _detectedFoods = [];
-  XFile? _capturedImage;
-  String? _errorMessage;
-
-  final ImagePicker _picker = ImagePicker();
-
-  // Mở camera hoặc thư viện (tuỳ chỉnh)
-  Future<void> _pickImage() async {
-    final XFile? image = await _picker.pickImage(
-      source: ImageSource.camera,
-      preferredCameraDevice: CameraDevice.rear,
-    );
-    if (image != null) {
-      _capturedImage = image;
-      await _analyzeImage(image);
-    }
-  }
-
-  Future<void> _analyzeImage(XFile image) async {
-    setState(() {
-      _state = ScanState.loading;
-      _errorMessage = null;
+    // Lắng nghe lỗi để hiện Snackbar
+    ref.listen(scanControllerProvider, (_, next) {
+      if (next.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: ${next.errorMessage}'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
     });
 
-    try {
-      final foodService = ref.read(foodServiceProvider);
-      final result = await foodService.analyzeFood(image.path);
-      // result là List<dynamic> từ server, mỗi item có thể là Map chứa thông tin món ăn
-      final foods = result.map((item) {
-        return MealItemModel(
-          foodName: item['name'] ?? 'Món ăn',
-          calories: (item['calories'] ?? 0).toDouble(),
-          protein: (item['protein'] ?? 0).toDouble(),
-          carbs: (item['carbs'] ?? 0).toDouble(),
-          fat: (item['fat'] ?? 0).toDouble(),
-          portion: item['portion'],
-        );
-      }).toList();
-
-      if (foods.isEmpty) throw Exception('Không nhận diện được món ăn');
-
-      setState(() {
-        _detectedFoods = foods;
-        _state = ScanState.result;
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-        _state = ScanState.scanning; // quay lại màn hình chụp
-      });
-
-      // Hiển thị toast thông báo lỗi
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Lỗi: ${_errorMessage ?? "Không thể phân tích ảnh"}'),
-          backgroundColor: AppColors.danger,
-        ),
-      );
-    }
-  }
-
-  void _onRetry() => setState(() {
-        _state = ScanState.scanning;
-        _detectedFoods = [];
-        _capturedImage = null;
-        _errorMessage = null;
-      });
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: switch (_state) {
-        ScanState.scanning => ScanningView(onCapture: _pickImage),
-        ScanState.loading => const LoadingView(),
-        ScanState.result => ResultView(
-            foods: _detectedFoods,
-            onRetry: _onRetry,
+      body: switch (state.status) {
+        ScanStatus.scanning => ScanningView(
+            onCapture: controller.pickAndAnalyze,
+          ),
+        ScanStatus.loading => const LoadingView(),
+        ScanStatus.result => ResultView(
+            foods: state.detectedFoods,
+            portion: state.portion,
+            isSaving: state.isSaving,
+            onRetry: controller.retry,
+            onIncrement: controller.incrementPortion,
+            onDecrement: controller.decrementPortion,
+            onSave: (calories) async {
+              final saved = await controller.saveToDiary(calories);
+              if (saved && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Đã lưu vào nhật ký!'),
+                    backgroundColor: AppColors.primaryMid,
+                  ),
+                );
+                controller.retry();
+              }
+            },
           ),
       },
     );

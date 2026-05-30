@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nutriscan/features/onboarding/onboarding_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/auth_provider.dart';
+import '../providers/onboarding_provider.dart';
 import '../features/splash/splash_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
@@ -24,29 +27,41 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/splash',
     redirect: (context, state) {
       final authState = ref.watch(authStateProvider);
+      final onboardingDone = ref.watch(onboardingDoneProvider);
       final isLoading = authState is AsyncLoading;
-
-      // KIỂM TRA ĐĂNG NHẬP KIỂU SUPABASE:
       final isLoggedIn = authState.value != null;
 
-      print(
-          '=== REDIRECT: isLoggedIn=$isLoggedIn, location=${state.matchedLocation} ===');
+      print('=== REDIRECT: isLoggedIn=$isLoggedIn, '
+          'onboarding=$onboardingDone, '
+          'location=${state.matchedLocation} ===');
 
-      final isSplash = state.matchedLocation == '/splash';
+      // Đang load — đứng yên
+      if (isLoading) return null;
+
+      final loc = state.matchedLocation;
+      final isSplash = loc == '/splash';
+      final isOnboarding = loc == '/onboarding';
       final isAuthRoute = [
         '/login',
         '/register',
         '/forgot-password',
-      ].contains(state.matchedLocation);
+      ].contains(loc);
 
-      // Đang tải thì đứng im chờ stream resolve
-      if (isLoading) return null;
+      // Splash đang xử lý — không redirect
+      if (isSplash) return null;
 
-      // Chưa đăng nhập mà vào màn hình khác auth/splash -> Đẩy về login
-      if (!isLoggedIn) return isAuthRoute ? null : '/login';
+      // Chưa xem onboarding → vào onboarding
+      if (!onboardingDone && !isOnboarding) return '/onboarding';
 
-      // Đã đăng nhập mà cố vào auth/splash -> Đẩy vào trang chủ
-      if (isSplash || isAuthRoute) return '/home';
+      // Đã xem onboarding, chưa đăng nhập → login
+      if (onboardingDone && !isLoggedIn && !isAuthRoute) {
+        return '/login';
+      }
+
+      // Đã đăng nhập mà vào auth/onboarding → home
+      if (isLoggedIn && (isAuthRoute || isOnboarding)) {
+        return '/home';
+      }
 
       return null;
     },
@@ -69,6 +84,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/edit-profile',
         builder: (context, state) => const EditProfileScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingScreen(),
       ),
 
       // ShellRoute bọc 4 màn hình có bottom nav
@@ -176,9 +195,16 @@ class _AuthChangeNotifier extends ChangeNotifier {
   final Ref _ref;
 
   _AuthChangeNotifier(this._ref) {
-    // Phải listen authStateProvider, không phải authNotifierProvider
     _ref.listen(authStateProvider, (previous, next) {
-      notifyListeners();
+      // Chỉ notify khi state thực sự thay đổi (không phải loading)
+      if (next is! AsyncLoading) {
+        notifyListeners();
+      }
+    });
+
+    // Lắng nghe onboarding thay đổi để trigger redirect
+    _ref.listen(onboardingDoneProvider, (previous, next) {
+      if (previous != next) notifyListeners();
     });
   }
 }

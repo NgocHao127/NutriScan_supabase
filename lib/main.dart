@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nutriscan/providers/onboarding_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app.dart';
 import 'package:app_links/app_links.dart';
@@ -10,6 +12,11 @@ Future<void> main() async {
 
   // Khởi tạo notification service
   await NotificationService().init();
+
+  // Load onboarding state TRƯỚC khi runApp
+  final prefs = await SharedPreferences.getInstance();
+  final onboardingDone = false;
+  // final onboardingDone = prefs.getBool('onboarding_done') ?? false;
 
   await Supabase.initialize(
     url: 'https://weuomrbfzfbiisncqtnz.supabase.co',
@@ -36,8 +43,11 @@ Future<void> main() async {
   });
 
   runApp(
-    const ProviderScope(
-      child: NutriScanApp(),
+    ProviderScope(
+      overrides: [
+        onboardingDoneProvider.overrideWith((ref) => onboardingDone),
+      ],
+      child: const NutriScanApp(),
     ),
   );
 }

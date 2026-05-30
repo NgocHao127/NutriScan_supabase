@@ -1,14 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme/app_responsive.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common_widgets.dart';
 
 import '../../../models/meal_item_model.dart';
-import '../../../models/meal_entry_model.dart';
-import '../../../providers/api_provider.dart';
-import '../../../providers/auth_provider.dart';
-import '../../../providers/today_record_provider.dart';
 
 class FoodScanResult {
   final String name;
@@ -60,26 +55,28 @@ class FoodScanResult {
   }
 }
 
-class ResultView extends ConsumerStatefulWidget {
+class ResultView extends StatelessWidget {
   final List<MealItemModel> foods;
+  final int portion;
+  final bool isSaving;
   final VoidCallback onRetry;
-  final VoidCallback? onSave;
+  final VoidCallback onIncrement;
+  final VoidCallback onDecrement;
+  final Future<void> Function(double) onSave;
 
   const ResultView({
     super.key,
-    required this.onRetry,
     required this.foods,
-    this.onSave,
+    required this.portion,
+    required this.isSaving,
+    required this.onRetry,
+    required this.onIncrement,
+    required this.onDecrement,
+    required this.onSave,
   });
 
-  @override
-  ConsumerState<ResultView> createState() => _ResultViewState();
-}
-
-class _ResultViewState extends ConsumerState<ResultView> {
-  // Tổng hợp từ nhiều món (nếu có)
   FoodScanResult get _aggregatedResult {
-    if (widget.foods.isEmpty) {
+    if (foods.isEmpty) {
       return const FoodScanResult(
         name: 'Không xác định',
         emoji: '❓',
@@ -90,15 +87,12 @@ class _ResultViewState extends ConsumerState<ResultView> {
         fat: 0,
       );
     }
-    // Lấy món đầu tiên làm đại diện (có thể cải tiến sau)
-    final first = widget.foods.first;
-    return FoodScanResult.fromMealItemModel(first);
+    return FoodScanResult.fromMealItemModel(foods.first);
   }
 
   @override
   Widget build(BuildContext context) {
     final food = _aggregatedResult;
-
     // Emoji bg — cố định fontSize
     final emojiFontSize = context.isDesktop
         ? 100.0
@@ -128,7 +122,7 @@ class _ResultViewState extends ConsumerState<ResultView> {
             ),
             child: Row(
               children: [
-                CamBtn(icon: Icons.arrow_back, onTap: widget.onRetry),
+                CamBtn(icon: Icons.arrow_back, onTap: onRetry),
                 const Spacer(),
               ],
             ),
@@ -165,8 +159,14 @@ class _ResultViewState extends ConsumerState<ResultView> {
         if (context.isDesktop)
           DesktopResultSheet(
             food: food,
-            onRetry: widget.onRetry,
-            foods: widget.foods,
+            onRetry: onRetry,
+            foods: foods,
+            portion: portion,
+            isSaving: isSaving,
+            onIncrement: onIncrement,
+            onDecrement: onDecrement,
+            onSave: onSave,
+            isDesktop: true,
           )
         else
           Positioned(
@@ -175,8 +175,13 @@ class _ResultViewState extends ConsumerState<ResultView> {
             right: 0,
             child: ResultSheet(
               food: food,
-              onRetry: widget.onRetry,
-              foods: widget.foods,
+              onRetry: onRetry,
+              foods: foods,
+              portion: portion,
+              isSaving: isSaving,
+              onIncrement: onIncrement,
+              onDecrement: onDecrement,
+              onSave: onSave,
             ),
           ),
       ],
@@ -189,13 +194,31 @@ class DesktopResultSheet extends StatelessWidget {
   final FoodScanResult food;
   final VoidCallback onRetry;
   final List<MealItemModel> foods;
+  final int portion;
+  final bool isSaving;
+  final VoidCallback onIncrement;
+  final VoidCallback onDecrement;
+  final Future<void> Function(double) onSave;
+  final bool isDesktop;
 
   const DesktopResultSheet({
     super.key,
     required this.food,
     required this.onRetry,
     required this.foods,
+    required this.portion,
+    required this.isSaving,
+    required this.onIncrement,
+    required this.onDecrement,
+    required this.onSave,
+    required this.isDesktop,
   });
+
+  // Tính toán giá trị thực theo portion
+  double get actualCalories => food.calories * portion;
+  double get actualProtein => food.protein * portion;
+  double get actualCarb => food.carb * portion;
+  double get actualFat => food.fat * portion;
 
   @override
   Widget build(BuildContext context) {
@@ -234,6 +257,11 @@ class DesktopResultSheet extends StatelessWidget {
                 food: food,
                 onRetry: onRetry,
                 foods: foods,
+                portion: portion,
+                isSaving: isSaving,
+                onIncrement: onIncrement,
+                onDecrement: onDecrement,
+                onSave: onSave,
                 isDesktop: true,
               ),
             ),
@@ -245,10 +273,15 @@ class DesktopResultSheet extends StatelessWidget {
 }
 
 // ── Result sheet (dùng chung mobile + desktop)
-class ResultSheet extends ConsumerStatefulWidget {
+class ResultSheet extends StatelessWidget {
   final FoodScanResult food;
   final VoidCallback onRetry;
   final List<MealItemModel> foods;
+  final int portion;
+  final bool isSaving;
+  final VoidCallback onIncrement;
+  final VoidCallback onDecrement;
+  final Future<void> Function(double) onSave;
   final bool isDesktop;
 
   const ResultSheet({
@@ -256,84 +289,16 @@ class ResultSheet extends ConsumerStatefulWidget {
     required this.food,
     required this.onRetry,
     required this.foods,
+    required this.portion,
+    required this.isSaving,
+    required this.onIncrement,
+    required this.onDecrement,
+    required this.onSave,
     this.isDesktop = false,
   });
 
   @override
-  ConsumerState<ResultSheet> createState() => _ResultSheetState();
-}
-
-class _ResultSheetState extends ConsumerState<ResultSheet> {
-  int portion = 1;
-  bool _isSaving = false;
-
-  Future<void> _saveToDiary(double actualCalories) async {
-    setState(() => _isSaving = true);
-    try {
-      final mealService = ref.read(mealServiceProvider);
-      final user = ref.read(authStateProvider).value;
-      if (user == null) throw Exception('Chưa đăng nhập');
-
-      final multipliedFoods = widget.foods.map((f) {
-        return MealItemModel(
-          foodName: f.foodName,
-          calories: f.calories * portion,
-          protein: f.protein * portion,
-          carbs: f.carbs * portion,
-          fat: f.fat * portion,
-          portion: '$portion phần',
-        );
-      }).toList();
-
-      final totalCalories = multipliedFoods.fold(0.0, (s, f) => s + f.calories);
-
-      final hour = DateTime.now().hour;
-      String mealType = 'Ăn vặt';
-      if (hour >= 5 && hour <= 10) {
-        mealType = 'Bữa sáng';
-      } else if (hour > 10 && hour <= 14) {
-        mealType = 'Bữa trưa';
-      } else if (hour >= 17 && hour < 22) {
-        mealType = 'Bữa tối';
-      }
-
-      final newMeal = MealEntryModel(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        userId: user.id,
-        name: 'Bữa ăn từ scan',
-        mealType: mealType,
-        mealTime: DateTime.now(),
-        calories: totalCalories,
-        protein: multipliedFoods.fold(0.0, (s, f) => s + f.protein),
-        carbs: multipliedFoods.fold(0.0, (s, f) => s + f.carbs),
-        fat: multipliedFoods.fold(0.0, (s, f) => s + f.fat),
-        items: multipliedFoods,
-      );
-
-      await mealService.logMeal(newMeal.toJson());
-
-      ref.invalidate(todayRecordProvider);
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Đã lưu vào nhật ký!'),
-            backgroundColor: Colors.green),
-      );
-      widget.onRetry();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi: $e'), backgroundColor: AppColors.danger),
-      );
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final food = widget.food;
     final actualCalories = food.calories * portion;
     final actualProtein = food.protein * portion;
     final actualCarb = food.carb * portion;
@@ -348,7 +313,7 @@ class _ResultSheetState extends ConsumerState<ResultSheet> {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.bgCard,
-        borderRadius: widget.isDesktop
+        borderRadius: isDesktop
             ? const BorderRadius.horizontal(left: Radius.circular(20))
             : const BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -356,7 +321,7 @@ class _ResultSheetState extends ConsumerState<ResultSheet> {
         mainAxisSize: MainAxisSize.min,
         children: [
           // Handle (chỉ hiện trên mobile/tablet)
-          if (!widget.isDesktop) ...[
+          if (!isDesktop) ...[
             SizedBox(height: 10),
             Center(
               child: Container(
@@ -461,9 +426,7 @@ class _ResultSheetState extends ConsumerState<ResultSheet> {
                 Row(
                   children: [
                     GestureDetector(
-                      onTap: () {
-                        if (portion > 1) setState(() => portion--);
-                      },
+                      onTap: onDecrement,
                       child: PortionBtn(
                         icon: Icons.remove,
                         size: portionBtnSize,
@@ -479,7 +442,7 @@ class _ResultSheetState extends ConsumerState<ResultSheet> {
                     ),
                     const SizedBox(width: 8),
                     GestureDetector(
-                      onTap: () => setState(() => portion++),
+                      onTap: onIncrement,
                       child: PortionBtn(icon: Icons.add, size: portionBtnSize),
                     ),
                   ],
@@ -544,9 +507,8 @@ class _ResultSheetState extends ConsumerState<ResultSheet> {
                         ),
                         elevation: 0,
                       ),
-                      onPressed:
-                          _isSaving ? null : () => _saveToDiary(actualCalories),
-                      child: _isSaving
+                      onPressed: isSaving ? null : () => onSave(actualCalories),
+                      child: isSaving
                           ? SizedBox(
                               width: btnH * 0.6,
                               height: btnH * 0.6,
@@ -567,7 +529,7 @@ class _ResultSheetState extends ConsumerState<ResultSheet> {
                 ),
                 const SizedBox(width: 8),
                 GestureDetector(
-                  onTap: widget.onRetry,
+                  onTap: onRetry,
                   child: Container(
                     width: btnH,
                     height: btnH,
