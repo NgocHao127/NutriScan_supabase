@@ -6,35 +6,8 @@ class LoginController extends AutoDisposeNotifier<LoginState> {
   @override
   LoginState build() => const LoginState();
 
-  // ── Validate ─────────────────────────────────────────────
-  bool _validate(String email, String password) {
-    String? emailError;
-    String? passwordError;
-
-    if (email.trim().isEmpty) {
-      emailError = 'Vui lòng nhập email';
-    } else if (!email.contains('@')) {
-      emailError = 'Email không hợp lệ';
-    }
-
-    if (password.isEmpty) {
-      passwordError = 'Vui lòng nhập mật khẩu';
-    } else if (password.length < 6) {
-      passwordError = 'Mật khẩu tối thiểu 6 ký tự';
-    }
-
-    state = state.copyWith(
-      emailError: emailError,
-      passwordError: passwordError,
-    );
-
-    return emailError == null && passwordError == null;
-  }
-
   // ── Đăng nhập email ──────────────────────────────────────
   Future<bool> login(String email, String password) async {
-    if (!_validate(email, password)) return false;
-
     state = state.copyWith(status: AuthStatus.loading);
     try {
       await ref

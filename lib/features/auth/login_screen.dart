@@ -20,6 +20,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
 
+  final _formKey = GlobalKey<FormState>();
+
   @override
   void dispose() {
     _emailCtrl.dispose();
@@ -227,85 +229,101 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Container(
       color: Colors.transparent,
       padding: EdgeInsets.fromLTRB(context.hPad, 10, context.hPad, 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AuthInput(
-            label: 'Email',
-            placeholder: 'minhkhoa@gmail.com',
-            controller: _emailCtrl,
-            keyboardType: TextInputType.emailAddress,
-            errorText: state.emailError,
-          ),
-          const SizedBox(height: 14),
-          AuthInput(
-            label: 'Mật khẩu',
-            placeholder: '••••••••',
-            controller: _passwordCtrl,
-            isPassword: true,
-            errorText: state.passwordError,
-          ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () => context.go('/forgot-password'),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Text(
-                'Quên mật khẩu?',
-                style: TextStyle(
-                  fontSize: context.fs(13),
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AuthInput(
+              label: 'Email',
+              placeholder: 'minhkhoa@gmail.com',
+              controller: _emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return 'Vui lòng nhập email';
+                if (!v.contains('@')) return 'Email không hợp lệ';
+                return null;
+              },
             ),
-          ),
-          const SizedBox(height: 28),
-          AuthButton(
-            label: 'Đăng nhập',
-            onPressed: () => controller.login(
-              _emailCtrl.text,
-              _passwordCtrl.text,
+            const SizedBox(height: 14),
+            AuthInput(
+              label: 'Mật khẩu',
+              placeholder: '••••••••',
+              controller: _passwordCtrl,
+              isPassword: true,
+              validator: (v) {
+                if (v == null || v.isEmpty) return 'Vui lòng nhập mật khẩu';
+                if (v.length < 6) return 'Mật khẩu tối thiểu 6 ký tự';
+                return null;
+              },
             ),
-            isLoading: state.isLoading,
-          ),
-          const SizedBox(height: 16),
-          const OrDivider(),
-          const SizedBox(height: 20),
-          GoogleButton(
-            label: 'Tiếp tục với Google',
-            onPressed: controller.loginWithGoogle,
-          ),
-          const SizedBox(height: 32),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Chưa có tài khoản? ',
-                style: TextStyle(
-                  fontSize: context.fs(13),
-                  color: AppColors.textSecondary,
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => context.go('/forgot-password'),
+                style: TextButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-              ),
-              GestureDetector(
-                onTap: () => context.go('/register'),
                 child: Text(
-                  'Đăng ký ngay',
+                  'Quên mật khẩu?',
                   style: TextStyle(
                     fontSize: context.fs(13),
                     color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: 28),
+            AuthButton(
+              label: 'Đăng nhập',
+              onPressed: () {
+                if (_formKey.currentState!.validate()) {
+                  controller.login(
+                    _emailCtrl.text,
+                    _passwordCtrl.text,
+                  );
+                }
+              },
+              isLoading: state.isLoading,
+            ),
+            const SizedBox(height: 16),
+            const OrDivider(),
+            const SizedBox(height: 20),
+            GoogleButton(
+              label: 'Tiếp tục với Google',
+              onPressed: controller.loginWithGoogle,
+            ),
+            const SizedBox(height: 32),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Chưa có tài khoản? ',
+                  style: TextStyle(
+                    fontSize: context.fs(13),
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => context.go('/register'),
+                  child: Text(
+                    'Đăng ký ngay',
+                    style: TextStyle(
+                      fontSize: context.fs(13),
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

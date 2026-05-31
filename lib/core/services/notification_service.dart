@@ -1,5 +1,5 @@
 import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -17,7 +17,13 @@ class NotificationService {
   // ── Khởi tạo ────────────────────────────────────────────
   Future<void> init() async {
     if (_initialized) return;
-    if (Platform.isWindows) return;
+
+    // Bỏ qua khởi tạo trên Windows, Web hoặc Linux
+    if (kIsWeb || Platform.isWindows || Platform.isLinux) {
+      debugPrint('⚠️ NotificationService bị vô hiệu hóa trên nền tảng này.');
+      return;
+    }
+
     tz.initializeTimeZones();
     // Đặt timezone theo thiết bị — cần thêm flutter_timezone nếu muốn tự động
     tz.setLocalLocation(tz.getLocation('Asia/Ho_Chi_Minh'));
@@ -37,6 +43,9 @@ class NotificationService {
   }
 
   Future<void> cancelWeeklySummary() async {
+    // Chặn gọi API Hủy trên nền tảng không hỗ trợ
+    if (kIsWeb || Platform.isWindows || Platform.isLinux) return;
+
     try {
       if (!_initialized) await init();
       await _plugin.cancel(200);
@@ -46,6 +55,9 @@ class NotificationService {
   }
 
   Future<void> cancelMealReminders() async {
+    // Chặn gọi API Hủy trên nền tảng không hỗ trợ
+    if (kIsWeb || Platform.isWindows || Platform.isLinux) return;
+
     try {
       if (!_initialized) await init();
       for (int id in [100, 101, 102, 103]) {
@@ -63,6 +75,9 @@ class NotificationService {
 
   // ── Xin quyền ───────────────────────────────────────────
   Future<bool> requestPermission() async {
+    // Bỏ qua xin quyền trên các nền tảng không hỗ trợ
+    if (kIsWeb || Platform.isWindows || Platform.isLinux) return true;
+
     // Android 13+
     final android = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
@@ -101,6 +116,21 @@ class NotificationService {
     required TimeOfDay dinner,
     required TimeOfDay snack,
   }) async {
+    // Lưu vào SharedPreferences
+    await _saveMealTimes(
+      breakfast: breakfast,
+      lunch: lunch,
+      dinner: dinner,
+      snack: snack,
+    );
+
+    // Chặn gọi API hẹn giờ trên nền tảng không hỗ trợ
+    if (kIsWeb || Platform.isWindows || Platform.isLinux) {
+      debugPrint(
+          '⚠️ Hẹn giờ nhắc bữa ăn (zonedSchedule) không hỗ trợ trên Desktop/Web.');
+      return;
+    }
+
     if (!_initialized) await init();
     // Hủy các lịch cũ trước
     await cancelMealReminders();
@@ -128,14 +158,6 @@ class NotificationService {
         matchDateTimeComponents: DateTimeComponents.time, // lặp hàng ngày
       );
     }
-
-    // Lưu vào SharedPreferences
-    await _saveMealTimes(
-      breakfast: breakfast,
-      lunch: lunch,
-      dinner: dinner,
-      snack: snack,
-    );
   }
 
   tz.TZDateTime _nextInstanceOfTime(TimeOfDay time) {
@@ -156,6 +178,13 @@ class NotificationService {
 
   // ── 2. Lập lịch tổng kết tuần AI (Chủ nhật 20h) ─────────
   Future<void> scheduleWeeklySummaryBait() async {
+    // Chặn gọi API hẹn giờ trên nền tảng không hỗ trợ
+    if (kIsWeb || Platform.isWindows || Platform.isLinux) {
+      debugPrint(
+          '⚠️ Lên lịch tổng kết tuần AI (zonedSchedule) không hỗ trợ trên Desktop/Web.');
+      return;
+    }
+
     if (!_initialized) await init();
     await _plugin.cancel(200);
 
@@ -199,6 +228,9 @@ class NotificationService {
     required int consumed,
     required int goal,
   }) async {
+    // Chặn gọi API hiển thị trên nền tảng không hỗ trợ
+    if (kIsWeb || Platform.isWindows || Platform.isLinux) return;
+
     if (!_initialized) await init();
     // Delay 3 giây để user kịp thoát app
     await Future.delayed(const Duration(seconds: 3));

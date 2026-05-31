@@ -2,9 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nutriscan/core/utils/food_emoji_mapper.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_responsive.dart';
 import '../../models/meal_item_model.dart';
+import '../../core/utils/food_emoji_mapper.dart';
 
 import 'widgets/meal/add_food_sheet.dart';
 import 'widgets/meal/nutrition_chip.dart';
@@ -348,69 +350,97 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
             ),
           )
         else
-          ...state.foods.asMap().entries.map((entry) {
-            final i = entry.key;
-            final food = entry.value;
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: AppColors.bgCard,
-                borderRadius: BorderRadius.circular(context.cardRadius),
-                border: Border.all(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  width: 0.5,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Center(
-                        child: Text('🍽️', style: TextStyle(fontSize: 18))),
+          ...state.foods.asMap().entries.map(
+            (entry) {
+              final i = entry.key;
+              final food = entry.value;
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.bgCard,
+                  borderRadius: BorderRadius.circular(context.cardRadius),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    width: 0.5,
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(food.foodName,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: FoodEmojiMapper.getCategoryColor(food.foodName)
+                            .withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Center(
+                        child: Text(
+                          FoodEmojiMapper.getEmoji(food.foodName),
+                          style: TextStyle(fontSize: 18),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            food.foodName,
                             style: TextStyle(
                               fontSize: context.fs(13),
                               fontWeight: FontWeight.w500,
-                            )),
-                        Text(
-                          '${food.calories.toInt()} kcal · ${food.portion}',
-                          style: TextStyle(
-                            fontSize: context.fs(11),
-                            color: AppColors.textSecondary,
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              // Category badge
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: FoodEmojiMapper.getCategoryColor(
+                                          food.foodName)
+                                      .withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  FoodEmojiMapper.getCategory(food.foodName),
+                                  style: TextStyle(
+                                    fontSize: context.fs(9),
+                                    color: FoodEmojiMapper.getCategoryColor(
+                                        food.foodName),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                'P${food.protein.toInt()} C${food.carbs.toInt()} F${food.fat.toInt()}',
+                                style: TextStyle(
+                                  fontSize: context.fs(10),
+                                  color: AppColors.textHint,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: () => controller.removeFood(i),
+                                child: Icon(Icons.close,
+                                    size: 18, color: AppColors.textHint),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  Text(
-                    'P${food.protein.toInt()} C${food.carbs.toInt()} F${food.fat.toInt()}',
-                    style: TextStyle(
-                      fontSize: context.fs(10),
-                      color: AppColors.textHint,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () => controller.removeFood(i),
-                    child:
-                        Icon(Icons.close, size: 18, color: AppColors.textHint),
-                  ),
-                ],
-              ),
-            );
-          }),
+                  ],
+                ),
+              );
+            },
+          ),
       ],
     );
   }

@@ -50,17 +50,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Splash đang xử lý — không redirect
       if (isSplash) return null;
 
+      // Đã đăng nhập → bỏ qua check onboarding
+      if (isLoggedIn) {
+        if (isAuthRoute || isOnboarding) return '/home';
+        return null;
+      }
+
       // Chưa xem onboarding → vào onboarding
       if (!onboardingDone && !isOnboarding) return '/onboarding';
 
       // Đã xem onboarding, chưa đăng nhập → login
       if (onboardingDone && !isLoggedIn && !isAuthRoute) {
         return '/login';
-      }
-
-      // Đã đăng nhập mà vào auth/onboarding → home
-      if (isLoggedIn && (isAuthRoute || isOnboarding)) {
-        return '/home';
       }
 
       return null;
@@ -106,9 +107,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
     ],
-    errorBuilder: (context, state) => const Scaffold(
-      body: Center(child: Text('Không tìm thấy trang')),
-    ),
+    errorBuilder: (context, state) {
+      print('=== ROUTER ERROR: ${state.matchedLocation} — ${state.error} ===');
+      return Scaffold(
+        body: Center(
+          child: Text('Lỗi: ${state.matchedLocation}\n${state.error}'),
+        ),
+      );
+    },
   );
 });
 

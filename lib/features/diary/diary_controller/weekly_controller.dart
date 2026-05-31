@@ -22,17 +22,20 @@ class WeeklyController extends AutoDisposeNotifier<WeeklyState> {
     final userProfile = ref.read(userProfileProvider).valueOrNull;
     final proteinGoal = userProfile?.proteinGoal ?? 70;
 
-    final List<DailyRecordModel?> records = [];
-    for (final date in weekDates) {
+    // Gọi 7 API song song
+    final futureRecords = weekDates.map((date) async {
       try {
         final data = await mealService.getDailyRecord(
           date: date.toIso8601String().substring(0, 10),
         );
-        records.add(data.isNotEmpty ? DailyRecordModel.fromJson(data) : null);
+        return data.isNotEmpty ? DailyRecordModel.fromJson(data) : null;
       } catch (_) {
-        records.add(null);
+        return null;
       }
-    }
+    });
+
+    // Chờ cả 7 API hoàn thành cùng lúc
+    final records = await Future.wait(futureRecords);
 
     // ── Tính toán ────────────────────────────────────────
     final cals = List.filled(7, 0);
@@ -45,17 +48,18 @@ class WeeklyController extends AutoDisposeNotifier<WeeklyState> {
 
     for (final record in records) {
       if (record == null) continue;
-      final caloriesGoal = record.caloriesGoal?.toInt();
-      if (caloriesGoal != null) goal = caloriesGoal;
+
+      goal = record.safeGoal;
 
       final dayIndex = record.recordDate.weekday - 1;
       if (dayIndex >= 0 && dayIndex < 7) {
-        final consumed = record.caloriesConsumed.toInt();
+        final consumed = record.safeConsumed;
         cals[dayIndex] = consumed;
+
         if (consumed > 0) {
           totalWeeklyCals += consumed;
           activeDays++;
-          totalProtein += record.protein;
+          totalProtein += record.safeProtein;
         }
       }
     }

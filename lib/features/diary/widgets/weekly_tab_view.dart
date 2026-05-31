@@ -34,7 +34,6 @@ class _WeeklyTabViewState extends ConsumerState<WeeklyTabView> {
     }
 
     final days = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-    2000;
     final maxVal = 2500;
     // Chiều cao chart: cố định dp thay vì % sh — không bị khổng lồ trên desktop
     final chartH = context.isDesktop

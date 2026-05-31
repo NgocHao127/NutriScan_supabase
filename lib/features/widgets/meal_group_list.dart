@@ -3,6 +3,7 @@ import '../theme/app_theme.dart';
 import '../theme/app_responsive.dart';
 import '../../models/meal_entry_model.dart';
 import '../../models/meal_item_model.dart';
+import '../../core/utils/food_emoji_mapper.dart';
 
 class MealGroupList extends StatelessWidget {
   final List<MealEntryModel> meals;
@@ -147,7 +148,7 @@ class MealCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconSize = context.iconSize(36, tablet: 40, desktop: 44);
+    final iconSize = context.iconSize(60, tablet: 60, desktop: 70);
     final timeStr = item.mealTime != null
         ? "${item.mealTime!.hour.toString().padLeft(2, '0')}:${item.mealTime!.minute.toString().padLeft(2, '0')}"
         : '';
@@ -174,7 +175,7 @@ class MealCard extends StatelessWidget {
             ),
             child: Center(
               child: Text(
-                '🍽️', // Tạm gắn emoji mặc định
+                FoodEmojiMapper.getEmoji(item.foodName),
                 style: TextStyle(fontSize: iconSize * 0.52),
               ),
             ),
@@ -192,6 +193,24 @@ class MealCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: context.fs(13),
                     fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: FoodEmojiMapper.getCategoryColor(item.foodName)
+                        .withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    FoodEmojiMapper.getCategory(item.foodName),
+                    style: TextStyle(
+                      fontSize: context.fs(9),
+                      color: FoodEmojiMapper.getCategoryColor(item.foodName),
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 2),

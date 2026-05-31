@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_responsive.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common_widgets.dart';
+import '../../../core/utils/food_emoji_mapper.dart';
 
 import '../../../models/meal_item_model.dart';
 
@@ -31,27 +32,13 @@ class FoodScanResult {
   }) {
     return FoodScanResult(
       name: item.foodName,
-      emoji: _getEmojiForFood(item.foodName),
+      emoji: FoodEmojiMapper.getEmoji(item.foodName),
       confidence: confidence,
       calories: item.calories,
       protein: item.protein,
       carb: item.carbs,
       fat: item.fat,
     );
-  }
-
-  // Hàm gợi ý emoji đơn giản dựa trên tên món
-  static String _getEmojiForFood(String name) {
-    if (name.contains('cơm')) return '🍚';
-    if (name.contains('phở') || name.contains('bún')) return '🍜';
-    if (name.contains('bánh mì')) return '🥖';
-    if (name.contains('trứng')) return '🥚';
-    if (name.contains('rau')) return '🥬';
-    if (name.contains('thịt')) return '🍖';
-    if (name.contains('cá')) return '🐟';
-    if (name.contains('trái cây') || name.contains('hoa quả')) return '🍎';
-    if (name.contains('sữa')) return '🥛';
-    return '🍽️';
   }
 }
 

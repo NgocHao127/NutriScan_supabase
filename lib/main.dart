@@ -7,8 +7,23 @@ import 'app.dart';
 import 'package:app_links/app_links.dart';
 import 'core/services/notification_service.dart';
 
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter_timezone/flutter_timezone.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Khởi tạo timezone
+  tz.initializeTimeZones();
+  try {
+    // Lấy múi giờ hiện tại của thiết bị (VD: 'Asia/Ho_Chi_Minh')
+    final String timeZoneName = await FlutterTimezone.getLocalTimezone();
+    // Gán nó làm múi giờ mặc định cho ứng dụng
+    tz.setLocalLocation(tz.getLocation(timeZoneName));
+  } catch (e) {
+    debugPrint('Lỗi khởi tạo timezone: $e');
+  }
 
   // Khởi tạo notification service
   await NotificationService().init();

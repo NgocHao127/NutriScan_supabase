@@ -98,3 +98,13 @@ class UserModel {
     };
   }
 }
+
+extension UserExtension on UserModel? {
+  int get safeCaloriesGoal => this?.calorieGoal ?? 2000;
+  double get safeProteinGoal => (this?.proteinGoal ?? 150).toDouble();
+  double get safeCarbsGoal => (this?.carbsGoal ?? 250).toDouble();
+  double get safeFatGoal => (this?.fatGoal ?? 65).toDouble();
+
+  String get safeGoal => this?.goal ?? 'Chưa đặt mục tiêu';
+  String get safeActivityLevel => this?.activityLevel ?? 'Chưa cập nhật';
+}

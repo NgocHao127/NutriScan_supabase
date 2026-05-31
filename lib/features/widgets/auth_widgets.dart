@@ -11,6 +11,7 @@ class AuthInput extends StatefulWidget {
   final TextInputType keyboardType;
   final String? errorText;
   final String? initialValue;
+  final String? Function(String?)? validator;
 
   const AuthInput({
     super.key,
@@ -21,6 +22,7 @@ class AuthInput extends StatefulWidget {
     this.keyboardType = TextInputType.text,
     this.errorText,
     this.initialValue,
+    this.validator,
   });
 
   @override
@@ -45,14 +47,16 @@ class _AuthInputState extends State<AuthInput> {
         ),
 
         const SizedBox(height: 5),
-        TextField(
+        TextFormField(
           controller: widget.controller,
           obscureText: widget.isPassword && _obscure,
           keyboardType: widget.keyboardType,
+          validator: widget.validator,
           style: TextStyle(
             fontSize: context.fs(13),
             color: AppColors.textPrimary,
           ),
+          autovalidateMode: AutovalidateMode.onUserInteraction,
           decoration: InputDecoration(
             hintText: widget.placeholder,
             hintStyle: TextStyle(

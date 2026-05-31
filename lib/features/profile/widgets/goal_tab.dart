@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nutriscan/models/users_model.dart';
 import '../../theme/app_responsive.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common_widgets.dart';
@@ -81,10 +82,10 @@ class CurrentGoalCard extends ConsumerWidget {
     final user = ref.watch(userProfileProvider).valueOrNull;
     final todayRecord = ref.watch(todayRecordProvider).valueOrNull;
 
-    final calorieGoal = user?.calorieGoal ?? 2000;
-    final proteinGoal = (user?.proteinGoal ?? 150).toDouble();
-    final carbsGoal = (user?.carbsGoal ?? 250).toDouble();
-    final fatGoal = (user?.fatGoal ?? 65).toDouble();
+    final calorieGoal = user.safeCaloriesGoal;
+    final proteinGoal = user.safeProteinGoal;
+    final carbsGoal = user.safeCarbsGoal;
+    final fatGoal = user.safeFatGoal;
 
     // Dữ liệu thực hôm nay
     final caloriesConsumed = todayRecord?.caloriesConsumed ?? 0;
@@ -127,14 +128,14 @@ class CurrentGoalCard extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      user?.goal ?? 'Chưa đặt mục tiêu',
+                      user.safeGoal,
                       style: TextStyle(
                         fontSize: context.fs(13),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                     Text(
-                      '${user?.activityLevel ?? 'Chưa cập nhật'} · $calorieGoal kcal',
+                      '${user.safeActivityLevel} · $calorieGoal kcal',
                       style: TextStyle(
                         fontSize: context.fs(11),
                         color: AppColors.textSecondary,

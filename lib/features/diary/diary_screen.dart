@@ -26,10 +26,20 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    // Thêm lắng nghe sự thay đổi của tab để ẩn/hiện FloatingActionButton
+    _tabController.addListener(_handleTabSelection);
+  }
+
+  void _handleTabSelection() {
+    // Gọi bộ cập nhật giao diện khi tab bắt đầu chuyển đổi sang trang mới
+    if (_tabController.indexIsChanging) {
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabSelection);
     _tabController.dispose();
     super.dispose();
   }
@@ -55,14 +65,17 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen>
             _buildMobileBody(context, state),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final saved = await context.push('/add-meal');
-          if (saved == true) controller.refresh();
-        },
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
+      // Ẩn hoàn toàn nút Add nếu người dùng đang ở Tab theo tuần (index == 1)
+      floatingActionButton: _tabController.index == 0
+          ? FloatingActionButton(
+              onPressed: () async {
+                final saved = await context.push('/add-meal');
+                if (saved == true) controller.refresh();
+              },
+              backgroundColor: AppColors.primary,
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
     );
   }
 
@@ -76,8 +89,10 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen>
               return NavigationRail(
                 backgroundColor: Colors.white,
                 selectedIndex: _tabController.index,
-                onDestinationSelected: (i) =>
-                    setState(() => _tabController.animateTo(i)),
+                onDestinationSelected: (i) {
+                  _tabController.animateTo(i);
+                  setState(() {}); // Đồng bộ lại việc ẩn hiện FAB trên Desktop
+                },
                 labelType: NavigationRailLabelType.all,
                 selectedIconTheme: const IconThemeData(
                   color: AppColors.primary,
